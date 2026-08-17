@@ -1,0 +1,2203 @@
+--// Z NEXUS - SCRIPT COMPLETO CON EXECUTE KILL INTEGRADO //--
+local Players = game:GetService("Players")
+local TextService = game:GetService("TextService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Stats = game:GetService("Stats")
+
+local V2_Active = true
+local SoundService = game:GetService("SoundService")
+
+local fileActivated = "OpcionActivada1.mp3"
+local fileDeactivated = "OpcionDesactivada1.mp3"
+
+local urlActivated = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/lv_0_20260816050935_mixed.mp3"
+local urlDeactivated = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/lv_0_20260816044033_original_mixed.mp3"
+
+task.spawn(function()
+    if not isfile(fileActivated) then
+        pcall(function() writefile(fileActivated, game:HttpGet(urlActivated)) end)
+    end
+    if not isfile(fileDeactivated) then
+        pcall(function() writefile(fileDeactivated, game:HttpGet(urlDeactivated)) end)
+    end
+end)
+
+_G.PlayOptionActivated = function()
+    task.spawn(function()
+        if not isfile(fileActivated) then
+            pcall(function() writefile(fileActivated, game:HttpGet(urlActivated)) end)
+        end
+
+        if isfile(fileActivated) then
+            local sound = Instance.new("Sound")
+            sound.Name = "VoiceActivated"
+            sound.SoundId = getcustomasset(fileActivated)
+            sound.Volume = 2
+            sound.Parent = SoundService
+            sound:Play()
+
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+        end
+    end)
+end
+
+_G.PlayOptionDeactivated = function()
+    task.spawn(function()
+        if not isfile(fileDeactivated) then
+            pcall(function() writefile(fileDeactivated, game:HttpGet(urlDeactivated)) end)
+        end
+
+        if isfile(fileDeactivated) then
+            local sound = Instance.new("Sound")
+            sound.Name = "VoiceDeactivated"
+            sound.SoundId = getcustomasset(fileDeactivated)
+            sound.Volume = 2
+            sound.Parent = SoundService
+            sound:Play()
+
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+        end
+    end)
+end
+
+local function IsRealPlayer(player)
+    if not player or not player:IsA("Player") or player == LocalPlayer or player.UserId <= 0 then return false end
+    
+    local char = player.Character
+    if not char or not char.Parent then return false end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local head = char:FindFirstChild("Head")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    
+    if not hum or hum.Health <= 0 or not head or not root then return false end
+    
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            if part.Transparency + part.LocalTransparencyModifier < 0.9 then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+_G.IsRealPlayer = IsRealPlayer
+
+_G.GetRealPlayers = function()
+    local realPlayers = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if IsRealPlayer(player) then
+            table.insert(realPlayers, player)
+        end
+    end
+    return realPlayers
+end
+
+if CoreGui:FindFirstChild("Z_ArrayList_System") then 
+    CoreGui.Z_ArrayList_System:Destroy() 
+end
+
+local arrayGui = Instance.new("ScreenGui")
+arrayGui.Name = "Z_ArrayList_System"
+arrayGui.ResetOnSpawn = false
+arrayGui.IgnoreGuiInset = true 
+
+local success = pcall(function() arrayGui.Parent = CoreGui end)
+if not success then
+    arrayGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+_G.Z_ArrayList_Enabled = true
+_G.Z_ArrayList_ColorMode = "RGB"
+_G.Z_ArrayList_CustomColor = Color3.fromRGB(170, 0, 255)
+_G.Z_ArrayList_OffsetX = -10
+_G.Z_ArrayList_OffsetY = 35
+_G.Z_ArrayList_TextSize = 14
+_G.Z_ArrayList_Padding = 3
+
+local arrayContainer = Instance.new("Frame", arrayGui)
+arrayContainer.Name = "Container"
+arrayContainer.AnchorPoint = Vector2.new(1, 0)
+arrayContainer.Position = UDim2.new(1, _G.Z_ArrayList_OffsetX, 0, _G.Z_ArrayList_OffsetY)
+arrayContainer.Size = UDim2.new(0, 400, 1, 0)
+arrayContainer.BackgroundTransparency = 1
+
+local arrayListLayout = Instance.new("UIListLayout", arrayContainer)
+arrayListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+arrayListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+arrayListLayout.Padding = UDim.new(0, _G.Z_ArrayList_Padding)
+
+local ActiveModules = {}
+local ActiveRenderItems = {}
+
+local function GetTextWidth(text, font, size)
+    return TextService:GetTextSize(text, size, font, Vector2.new(1000, 1000)).X
+end
+
+local function GetActiveArrayListColor(index)
+    if _G.Z_ArrayList_ColorMode == "RGB" then
+        local hue = ((tick() * 0.35) + ((index or 1) * 0.06)) % 1
+        return Color3.fromHSV(hue, 0.8, 1)
+    elseif _G.Z_ArrayList_ColorMode == "Morado" then
+        return Color3.fromRGB(170, 0, 255)
+    elseif _G.Z_ArrayList_ColorMode == "Azul" then
+        return Color3.fromRGB(0, 150, 255)
+    elseif _G.Z_ArrayList_ColorMode == "Personalizado" then
+        return _G.Z_ArrayList_CustomColor
+    else
+        return Color3.fromRGB(0, 255, 128)
+    end
+end
+
+local function UpdateContainerLayout()
+    arrayContainer.Position = UDim2.new(1, _G.Z_ArrayList_OffsetX, 0, _G.Z_ArrayList_OffsetY)
+    arrayListLayout.Padding = UDim.new(0, _G.Z_ArrayList_Padding)
+end
+
+local function RenderArrayList()
+    ActiveRenderItems = {}
+    
+    for _, child in pairs(arrayContainer:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    if not _G.Z_ArrayList_Enabled then return end
+    UpdateContainerLayout()
+
+    local sortedList = {}
+    for name, data in pairs(ActiveModules) do
+        if data.State then
+            table.insert(sortedList, {
+                Name = name,
+                Suffix = data.Suffix or ""
+            })
+        end
+    end
+
+    local font = Enum.Font.GothamBold
+    local textSize = _G.Z_ArrayList_TextSize or 14
+
+    table.sort(sortedList, function(a, b)
+        local textA = a.Name .. (a.Suffix ~= "" and (" " .. a.Suffix) or "")
+        local textB = b.Name .. (b.Suffix ~= "" and (" " .. b.Suffix) or "")
+        return GetTextWidth(textA, font, textSize) > GetTextWidth(textB, font, textSize)
+    end)
+
+    for i, mod in ipairs(sortedList) do
+        local fullText = mod.Name .. (mod.Suffix ~= "" and (" " .. mod.Suffix) or "")
+        local textWidth = GetTextWidth(fullText, font, textSize)
+        local currentColor = GetActiveArrayListColor(i)
+        local itemHeight = textSize + 8
+
+        local itemFrame = Instance.new("Frame", arrayContainer)
+        itemFrame.Size = UDim2.new(0, textWidth + 18, 0, itemHeight)
+        itemFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        itemFrame.BackgroundTransparency = 0.25
+        itemFrame.BorderSizePixel = 0
+        itemFrame.LayoutOrder = i
+
+        local itemCorner = Instance.new("UICorner", itemFrame)
+        itemCorner.CornerRadius = UDim.new(0, 4)
+
+        local itemStroke = Instance.new("UIStroke", itemFrame)
+        itemStroke.Thickness = 1
+        itemStroke.Transparency = 0.55
+        itemStroke.Color = currentColor
+
+        local accent = Instance.new("Frame", itemFrame)
+        accent.Size = UDim2.new(0, 3, 1, -4)
+        accent.Position = UDim2.new(1, -4, 0, 2)
+        accent.BackgroundColor3 = currentColor
+        accent.BorderSizePixel = 0
+
+        local accentCorner = Instance.new("UICorner", accent)
+        accentCorner.CornerRadius = UDim.new(0, 2)
+
+        local label = Instance.new("TextLabel", itemFrame)
+        label.Size = UDim2.new(1, -12, 1, 0)
+        label.Position = UDim2.new(0, 4, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = fullText
+        label.TextColor3 = currentColor
+        label.Font = font
+        label.TextSize = textSize
+        label.TextXAlignment = Enum.TextXAlignment.Right
+
+        table.insert(ActiveRenderItems, {
+            Index = i,
+            Label = label,
+            Accent = accent,
+            Stroke = itemStroke
+        })
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if _G.Z_ArrayList_Enabled and _G.Z_ArrayList_ColorMode == "RGB" then
+        for _, item in ipairs(ActiveRenderItems) do
+            if item.Label and item.Label.Parent then
+                local col = GetActiveArrayListColor(item.Index)
+                item.Label.TextColor3 = col
+                item.Accent.BackgroundColor3 = col
+                item.Stroke.Color = col
+            end
+        end
+    end
+end)
+
+_G.UpdateArrayList = function(name, state, suffix)
+    ActiveModules[name] = {
+        State = state,
+        Suffix = suffix or ""
+    }
+    RenderArrayList()
+end
+
+_G.RefreshArrayListUI = RenderArrayList
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+WindUI:SetTheme("Dark")
+
+local Window = WindUI:CreateWindow({
+    Title = "Ｚ  ＮＥＸＵＳ",
+    Icon = "rbxthumb://type=Asset&id=88212626965405&w=420&h=420",
+    Author = "<i><font color='#888888'>By</font> <font color='#00FF00'>@znoreste</font></i>",
+    Folder = "ZNexus",
+    Size = UDim2.fromOffset(600, 480),
+    MinSize = Vector2.new(560, 350),
+    MaxSize = Vector2.new(850, 560),
+    ToggleKey = Enum.KeyCode.P,
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 200,
+    HideSearchBar = true,
+    ScrollBarEnabled = true,
+
+    Topbar = {
+        Height = 44,
+        ButtonsType = "Mac", 
+    },
+
+    KeySystem = {
+        Key = { "wnexus", "" },
+        Note = "Ingresa tu Key para acceder. Si no la tienes unete al discord.",
+        URL = "https://raw.githubusercontent.com/Beto321df/oiioidjasfdhsf/main/file_000000003f08823081949111cf08d967.png",
+        SaveKey = false,
+    },
+
+    OpenButton = {
+        Title = "Z Nexus",
+        CornerRadius = UDim.new(4, 7),
+        StrokeThickness = 0.0,
+        Enabled = true,
+        Draggable = true,
+        OnlyMobile = false,
+        Color = ColorSequence.new(
+            Color3.fromHex("#484848"), 
+            Color3.fromHex("#ffffff")
+        )
+    },
+
+    Background = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/VeniceAI_AOYcKtt.png",
+    BackgroundImageTransparency = 0.35,
+
+    User = {
+        Enabled = true,
+        Anonymous = false,
+        Title = "Z",
+        Subtitle = "Owner & Developer",
+        Icon = "rbxthumb://type=AvatarHeadShot&id=5569179741&w=150&h=150",
+        Callback = function() print("") end,
+    },
+})
+
+local InfoTab = Window:Tab({ Title = "Home", Icon = "info" })
+local CombatTab = Window:Tab({ Title = "Combat", Icon = "home" })
+local VisualsTab = Window:Tab({ Title = "Render", Icon = "home" })
+local SilentTab = Window:Tab({ Title = "Silent Aim", Icon = "home" })
+local MainTab = Window:Tab({ Title = "", Icon = "info" })
+local OtherTab = Window:Tab({ Title = "Other", Icon = "home" })
+local UniversalTab = Window:Tab({ Title = "Universal", Icon = "home" })
+local ConfigTab = Window:Tab({ Title = "Config Save", Icon = "home" })
+
+local Player = LocalPlayer
+local gunLoopActive = true
+local connections = {}
+local hackedTools = {}
+
+_G.Z_GunMods_Active = true
+_G.Z_GunMods_InfAmmo = false
+_G.Z_GunMods_NoRecoil = false
+
+--// 6. LÓGICA DE DISPARO CORREGIDA //--
+local function ExecuteKill()
+    local target = getgenv().CurrentTarget
+    if not target then return end
+    
+    local char = LocalPlayer.Character
+    local backpack = LocalPlayer.Backpack
+    local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+    
+    local gun = char:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun"))
+    if not gun or not myRoot then return end
+
+    -- Equipa automáticamente si no la tienes en mano
+    if gun.Parent ~= char then 
+        char.Humanoid:EquipTool(gun)
+        task.wait(0.05)
+    end
+
+    -- Cálculo de predicción
+    local rawPing = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString():split(" ")[1]
+    local pingValue = tonumber(rawPing) or 50
+    local Prediction = (pingValue / 2500) + 0.175 
+    local TargetPos = target.Position + (target.AssemblyLinearVelocity * Prediction)
+    
+    -- CORRECCIÓN: El origen debe salir de tu posición real para que el servidor no rechace el disparo
+    local GunOrigin = myRoot.Position + Vector3.new(0, 2, 0)
+    local args = { CFrame.new(GunOrigin), CFrame.new(TargetPos) }
+    
+    if gun:FindFirstChild("Shoot") then 
+        gun.Shoot:FireServer(unpack(args))
+        
+        if V2_Active then
+            task.wait(0.05)
+            gun.Parent = backpack 
+        end
+    end
+end
+
+_G.ExecuteKillActive = false
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+        if _G.ExecuteKillActive then
+            pcall(ExecuteKill)
+        end
+    end
+end)
+
+local function HackGun(v)
+    if type(v) ~= "table" or not rawget(v, "gunName") then return end
+    
+    if _G.Z_GunMods_InfAmmo then
+        local hugeAmmo = 999999999
+        v.AmmoInGun = hugeAmmo 
+        v.Ammo = hugeAmmo
+        v.StoredAmmo = hugeAmmo
+        v.MaxStoredAmmo = hugeAmmo 
+        if rawget(v, "Jammed") ~= nil then v.Jammed = false end
+    end
+
+    if _G.Z_GunMods_NoRecoil then
+        v.MinSpread = 0; v.MaxSpread = 0; v.AimInaccuracyStepAmount = 0; v.AimInaccuracyDecrease = 10
+        v.MinRecoilPower = 0; v.MaxRecoilPower = 0; v.RecoilPowerStepAmount = 0; v.Recoil = 0 
+        if type(v.camRecoil) == "table" then
+            v.camRecoil.camRecoilUp = {0,0}; v.camRecoil.camRecoilTilt = {0,0}; v.camRecoil.camRecoilLeft = {0,0}; v.camRecoil.camRecoilRight = {0,0}
+        end
+        if type(v.gunRecoil) == "table" then
+            v.gunRecoil.gunRecoilUp = {0,0}; v.gunRecoil.gunRecoilTilt = {0,0}; v.gunRecoil.gunRecoilLeft = {0,0}; v.gunRecoil.gunRecoilRight = {0,0}; v.gunRecoil.DownPunch = 0
+        end
+    end
+end
+
+_G.Z_ForceGunScan = function()
+    if not _G.Z_GunMods_Active then return end
+    pcall(function()
+        for _, v in pairs(getgc(true)) do
+            if type(v) == "table" and rawget(v, "gunName") then
+                HackGun(v)
+            end
+        end
+    end)
+end
+
+local function onToolEquipped(tool)
+    if not _G.Z_GunMods_Active or not tool or hackedTools[tool] then return end
+    hackedTools[tool] = true
+end
+
+if Player.Character then
+    table.insert(connections, Player.Character.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then onToolEquipped(child) end
+    end))
+end
+
+table.insert(connections, Player.CharacterAdded:Connect(function(char)
+    hackedTools = {}
+    table.insert(connections, char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then onToolEquipped(child) end
+    end))
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then onToolEquipped(tool) end
+end))
+
+task.spawn(function()
+    while gunLoopActive do
+        task.wait(0.05)
+        if _G.Z_GunMods_Active and _G.Z_GunMods_InfAmmo then
+            pcall(function()
+                local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    _G.Z_ForceGunScan()
+                    for _, obj in pairs(tool:GetDescendants()) do
+                        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                            local n = obj.Name:lower()
+                            if n:find("ammo") or n:find("mag") or n:find("bullet") then
+                                if obj.Value ~= 999999999 then
+                                    obj.Value = 999999999
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- // 👁️ LÓGICA ESP 2X (DISTANCIA CORREGIDA) // --
+_G.Z_ESP_Master = false
+_G.Z_ESP_Boxes = true
+_G.Z_ESP_HealthBar = true
+_G.Z_ESP_TeamCheck = false 
+_G.Z_ESP_Color = Color3.fromRGB(0, 255, 0)
+
+task.spawn(function()
+    local Camera = workspace.CurrentCamera
+    local LP = Players.LocalPlayer
+
+    if CoreGui:FindFirstChild("Z_ESP_LITE") then CoreGui.Z_ESP_LITE:Destroy() end
+
+    local ESPGui = Instance.new("ScreenGui", CoreGui)
+    ESPGui.Name = "Z_ESP_LITE"
+    ESPGui.IgnoreGuiInset = true 
+
+    local ESP_Data = {}
+
+    local function CreateESP(player)
+        if ESP_Data[player] then return end
+        
+        local box = Instance.new("Frame", ESPGui)
+        box.BackgroundColor3 = Color3.new(1,1,1)
+        box.BackgroundTransparency = 1
+        box.Visible = false
+        
+        local stroke = Instance.new("UIStroke", box)
+        stroke.Thickness = 1.0
+        stroke.Color = _G.Z_ESP_Color
+
+        local bg = Instance.new("Frame", ESPGui)
+        bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        bg.BackgroundTransparency = 0.5
+        bg.BorderSizePixel = 0
+        bg.Visible = false
+
+        local fill = Instance.new("Frame", bg)
+        fill.AnchorPoint = Vector2.new(0, 1)
+        fill.Position = UDim2.new(0, 0, 1, 0)
+        fill.Size = UDim2.new(1, 0, 1, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        fill.BorderSizePixel = 0
+
+        ESP_Data[player] = {Box = box, Bg = bg, Fill = fill, Stroke = stroke}
+    end
+
+    local function RemoveESP(player)
+        if ESP_Data[player] then
+            pcall(function()
+                ESP_Data[player].Box:Destroy()
+                ESP_Data[player].Bg:Destroy()
+            end)
+            ESP_Data[player] = nil
+        end
+    end
+
+    for _, p in pairs(Players:GetPlayers()) do if p ~= LP then CreateESP(p) end end
+    Players.PlayerAdded:Connect(function(p) if p ~= LP then CreateESP(p) end end)
+    Players.PlayerRemoving:Connect(RemoveESP)
+
+    RunService.RenderStepped:Connect(function()
+        for player, data in pairs(ESP_Data) do
+            local char = player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+            if not _G.Z_ESP_Master or not char or not hum or not hrp or hum.Health <= 0 or not IsRealPlayer(player) then
+                data.Box.Visible = false
+                data.Bg.Visible = false
+                continue
+            end
+
+            if _G.Z_ESP_TeamCheck and player.Team and LP.Team and player.Team == LP.Team then
+                data.Box.Visible = false
+                data.Bg.Visible = false
+                continue
+            end
+
+            -- Cálculo basado en CFrame del HRP para evitar deformación por animaciones a distancia
+            local topWorld = (hrp.CFrame * CFrame.new(0, 3, 0)).Position
+            local botWorld = (hrp.CFrame * CFrame.new(0, -3.5, 0)).Position
+
+            local topPos, onScreen = Camera:WorldToViewportPoint(topWorld)
+            local botPos = Camera:WorldToViewportPoint(botWorld)
+
+            if onScreen then
+                -- Redondeo de coordenadas para evitar subpíxeles borrosos u holgados
+                local rawHeight = math.abs(topPos.Y - botPos.Y)
+                local height = math.round(math.max(rawHeight, 6)) -- Límite mínimo de altura
+                local width = math.round(height / 1.8)
+                
+                local posX = math.round(topPos.X - (width / 2))
+                local posY = math.round(topPos.Y)
+
+                if _G.Z_ESP_Boxes then
+                    data.Stroke.Color = _G.Z_ESP_Color 
+                    data.Box.Size = UDim2.new(0, width, 0, height)
+                    data.Box.Position = UDim2.new(0, posX, 0, posY)
+                    data.Box.Visible = true
+                else
+                    data.Box.Visible = false
+                end
+
+                if _G.Z_ESP_HealthBar then
+                    data.Bg.Size = UDim2.new(0, 2, 0, height) 
+                    data.Bg.Position = UDim2.new(0, posX - 4, 0, posY) 
+                    data.Bg.Visible = true
+
+                    local hpPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+                    data.Fill.Size = UDim2.new(1, 0, hpPercent, 0)
+                    data.Fill.BackgroundColor3 = Color3.fromHSV(hpPercent * 0.3, 1, 1)
+                else
+                    data.Bg.Visible = false
+                end
+            else
+                data.Box.Visible = false
+                data.Bg.Visible = false
+            end
+        end
+    end)
+end)
+
+-- // ⚙️ VARIABLES GLOBALES (TRACERS PRO + TEAM CHECK) // --
+_G.Z_Tracers_Enabled = false
+_G.Z_Tracer_TeamCheck = false 
+_G.Z_Tracer_Origin = "Abajo"
+_G.Z_Tracer_Color = Color3.fromRGB(0, 255, 0)
+_G.Z_Tracer_Width = 1 -- Mínimo 1 para evitar que desaparezca
+_G.Z_Tracer_Transparency = 0.4
+
+task.spawn(function()
+    local Camera = workspace.CurrentCamera
+    local LP = Players.LocalPlayer
+
+    if CoreGui:FindFirstChild("Z_TRACERS_LITE") then
+        CoreGui.Z_TRACERS_LITE:Destroy()
+    end
+
+    local TracerGui = Instance.new("ScreenGui", CoreGui)
+    TracerGui.Name = "Z_TRACERS_LITE"
+    TracerGui.IgnoreGuiInset = true 
+
+    local Tracer_Data = {}
+
+    local function CreateTracer(player)
+        if Tracer_Data[player] then return end
+        local line = Instance.new("Frame")
+        line.Name = "TracerLine"
+        line.AnchorPoint = Vector2.new(0.5, 0.5) 
+        line.BackgroundColor3 = _G.Z_Tracer_Color
+        line.BackgroundTransparency = _G.Z_Tracer_Transparency
+        line.BorderSizePixel = 0
+        line.Visible = false
+        line.Parent = TracerGui
+        Tracer_Data[player] = line
+    end
+
+    local function RemoveTracer(player)
+        if Tracer_Data[player] then
+            pcall(function() Tracer_Data[player]:Destroy() end)
+            Tracer_Data[player] = nil
+        end
+    end
+
+    for _, p in pairs(Players:GetPlayers()) do if p ~= LP then CreateTracer(p) end end
+    Players.PlayerAdded:Connect(function(p) if p ~= LP then CreateTracer(p) end end)
+    Players.PlayerRemoving:Connect(RemoveTracer)
+
+    RunService.RenderStepped:Connect(function()
+        local ViewportSize = Camera.ViewportSize
+        
+        local Origin = Vector2.new(ViewportSize.X / 2, ViewportSize.Y)
+        if _G.Z_Tracer_Origin == "Arriba" then
+            Origin = Vector2.new(ViewportSize.X / 2, 0)
+        elseif _G.Z_Tracer_Origin == "Centro" then
+            Origin = Vector2.new(ViewportSize.X / 2, ViewportSize.Y / 2)
+        end
+
+        local safeWidth = math.max(1, _G.Z_Tracer_Width or 1)
+
+        for player, line in pairs(Tracer_Data) do
+            local char = player.Character
+            local head = char and char:FindFirstChild("Head")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+            -- Validación Anti-Bot idéntica a la del ESP 2X
+            if not _G.Z_Tracers_Enabled or not head or not hum or hum.Health <= 0 or not IsRealPlayer(player) then
+                line.Visible = false
+                continue
+            end
+
+            if _G.Z_Tracer_TeamCheck and player.Team and LP.Team and player.Team == LP.Team then
+                line.Visible = false
+                continue
+            end
+
+            local headPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            local Target
+
+            if onScreen then
+                Target = Vector2.new(headPos.X, headPos.Y)
+            else
+                local centerScreen = Vector2.new(ViewportSize.X / 2, ViewportSize.Y / 2)
+                local fakePos = Vector2.new(headPos.X, headPos.Y)
+                if headPos.Z < 0 then
+                    fakePos = Vector2.new(
+                        centerScreen.X + (centerScreen.X - headPos.X), 
+                        centerScreen.Y + (centerScreen.Y - headPos.Y)
+                    )
+                end
+                local direction = (fakePos - centerScreen).Unit
+                Target = centerScreen + (direction * (ViewportSize.X * 0.5))
+            end
+            
+            local Distance = (Target - Origin).Magnitude
+            local Center = (Target + Origin) / 2
+            local Angle = math.atan2(Target.Y - Origin.Y, Target.X - Origin.X)
+
+            line.Size = UDim2.new(0, Distance, 0, safeWidth) 
+            line.BackgroundTransparency = _G.Z_Tracer_Transparency or 0.4
+            line.BackgroundColor3 = _G.Z_Tracer_Color
+            line.Position = UDim2.new(0, Center.X, 0, Center.Y)
+            line.Rotation = math.deg(Angle)
+            line.Visible = true
+        end
+    end)
+end)
+
+_G.Z_NoFall_Enabled = false
+
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local LP = Players.LocalPlayer
+
+    RunService.Heartbeat:Connect(function()
+        if not _G.Z_NoFall_Enabled then return end
+
+        local char = LP.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+        if hrp and hum and hum.Health > 0 then
+            -- Frena la velocidad vertical al caer para evitar que el juego registre impacto de daño
+            if hrp.AssemblyLinearVelocity.Y < -30 then
+                hrp.AssemblyLinearVelocity = Vector3.new(
+                    hrp.AssemblyLinearVelocity.X,
+                    -10, -- Velocidad segura
+                    hrp.AssemblyLinearVelocity.Z
+                )
+            end
+        end
+    end)
+end)
+
+_G.Zinvis = false
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    local lp = game.Players.LocalPlayer
+    local char = lp.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChild("Humanoid")
+
+    if _G.Zinvis and root and hum and hum.Health > 0 then
+        local oldPos = root.CFrame
+
+        root.CFrame = oldPos * CFrame.new(0, 999, 0)
+        
+        hum.CameraOffset = Vector3.new(0, -999, 0)
+        
+        game:GetService("RunService").RenderStepped:Wait()
+        root.CFrame = oldPos
+    elseif hum then
+        hum.CameraOffset = Vector3.new(0, 0, 0)
+    end
+end)
+
+task.spawn(function()
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local Camera = workspace.CurrentCamera
+    local LP = Players.LocalPlayer
+
+    local RealCFrame = nil
+    local CamAnchor = nil
+    local WasDesyncing = false
+
+    local function GetCamAnchor()
+        if not CamAnchor then
+            CamAnchor = Instance.new("Part")
+            CamAnchor.Name = "Z_CamAnchor"
+            CamAnchor.Transparency = 1
+            CamAnchor.CanCollide = false
+            CamAnchor.Anchored = true
+            CamAnchor.Size = Vector3.new(1, 1, 1)
+            CamAnchor.Parent = workspace
+        end
+        return CamAnchor
+    end
+
+    RunService.RenderStepped:Connect(function()
+        local Char = LP.Character
+        local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+        local Hum = Char and Char:FindFirstChild("Humanoid")
+
+        if _G.DesyncEnabled and HRP and Hum and RealCFrame then
+            HRP.CFrame = RealCFrame
+            
+            local anchor = GetCamAnchor()
+            anchor.Position = RealCFrame.Position + Vector3.new(0, 1.5, 0) 
+            Camera.CameraSubject = anchor
+
+            local camDist = (Camera.CFrame.Position - anchor.Position).Magnitude
+            local isFirstPerson = camDist < 1.5
+
+            for _, part in pairs(Char:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Decal") then
+                    if part.Name ~= "HumanoidRootPart" then
+                        part.LocalTransparencyModifier = isFirstPerson and 1 or 0
+                    end
+                end
+            end
+
+        else
+            if Hum and Camera.CameraSubject ~= Hum then
+                Camera.CameraSubject = Hum
+                
+                if Char then
+                    for _, part in pairs(Char:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("Decal") then
+                            part.LocalTransparencyModifier = 0
+                        end
+                    end
+                end
+            end
+            if CamAnchor then
+                CamAnchor:Destroy()
+                CamAnchor = nil
+            end
+        end
+    end)
+
+    RunService.Heartbeat:Connect(function()
+        local Char = LP.Character
+        local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+        
+        if _G.DesyncEnabled and HRP then
+            WasDesyncing = true
+            
+            RealCFrame = HRP.CFrame
+            
+            local rx = math.random(-_G.DesyncPower, _G.DesyncPower) / 10 
+            local rz = math.random(-_G.DesyncPower, _G.DesyncPower) / 10 
+            
+            HRP.CFrame = RealCFrame * CFrame.new(rx, 0, rz) * CFrame.Angles(0, math.rad(math.random(0, 360)), 0)
+            
+        elseif WasDesyncing then
+            if HRP and RealCFrame then
+                HRP.CFrame = RealCFrame
+                HRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end
+            
+            RealCFrame = nil
+            WasDesyncing = false
+        end
+    end)
+end)
+
+_G.Z_Spin_Enabled = false
+
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local LP = Players.LocalPlayer
+    local spinAngle = 0
+
+    RunService.Heartbeat:Connect(function()
+        local char = LP.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+        if _G.Z_Spin_Enabled and hrp and hum and hum.Health > 0 then
+            -- Desactivamos el auto-rotado para que la cámara y los disparos mantengan su dirección
+            hum.AutoRotate = false
+
+            -- Velocidad de giro fija determinada (45° por frame)
+            spinAngle = (spinAngle + 45) % 360
+
+            -- Giramos la CFrame sobre el eje Y respetando la posición actual
+            hrp.CFrame = CFrame.new(hrp.CFrame.Position) * CFrame.Angles(0, math.rad(spinAngle), 0)
+        else
+            -- Al apagar el Spinbot, devolvemos el control de rotación normal al personaje
+            if hum and not hum.AutoRotate then
+                hum.AutoRotate = true
+            end
+        end
+    end)
+end)
+
+_G.Z_Hitbox_Active = false
+_G.Z_Hitbox_Size = 20
+_G.Z_Hitbox_Mode = "Head"
+_G.Z_Team_Check = true
+_G.Z_Force_Reset = false
+
+local s_p = "Si".."ze"
+local h_p = "He".."ad"
+local t_p = "Tor".."so"
+local tr_p = "Trans".."parency"
+local d_p = "Z".."Data".."99"
+
+RunService.Heartbeat:Connect(function()
+    if not _G.Z_Hitbox_Active and not _G.Z_Force_Reset then return end
+
+    local lp = Players.LocalPlayer
+    local val_size = _G.Z_Hitbox_Size or 20
+    local v_size = Vector3.new(val_size, val_size, val_size)
+
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character then
+            local char = p.Character
+
+            local is_team = _G.Z_Team_Check and lp.Team and p.Team == lp.Team
+            if not _G.Z_Hitbox_Active or _G.Z_Force_Reset or is_team then
+                for _, part in pairs(char:GetChildren()) do
+                    local backup = part:FindFirstChild(d_p)
+                    if backup then
+                        part[s_p] = backup.Value
+                        part[tr_p] = 0
+                        part.CanCollide = true
+                    end
+                end
+                if is_team then continue end
+            end
+
+            if not _G.Z_Hitbox_Active then continue end
+
+            local targets = {}
+            if _G.Z_Hitbox_Mode == "Head" then
+                local head = char:FindFirstChild(h_p) or char:FindFirstChild("FakeHead")
+                if head then table.insert(targets, head) end
+            elseif _G.Z_Hitbox_Mode == "Torso" then
+                local torso = char:FindFirstChild(t_p) or char:FindFirstChild("Upper"..t_p) or char:FindFirstChild("Lower"..t_p)
+                if torso then table.insert(targets, torso) end
+            elseif _G.Z_Hitbox_Mode == "Huesos" then
+                local bones = {"Left Arm", "Right Arm", "Left Leg", "Right Leg", "LeftUpperArm", "RightUpperArm", "LeftUpperLeg", "RightUpperLeg"}
+                for _, b in pairs(bones) do 
+                    local bp = char:FindFirstChild(b)
+                    if bp then table.insert(targets, bp) end
+                end
+            end
+
+            for _, obj in pairs(targets) do
+                if obj and obj:IsA("BasePart") then
+                    if obj[s_p] ~= v_size then
+                        if not obj:FindFirstChild(d_p) then
+                            local s = Instance.new("Vector3Value", obj)
+                            s.Name = d_p
+                            s.Value = obj[s_p]
+                        end
+
+                        obj[s_p] = v_size
+                        obj[tr_p] = 0.6
+                        obj.Color = Color3.fromRGB(255, 0, 0)
+                        obj.Material = Enum.Material.Neon
+                        obj.CanCollide = false
+                        obj.Massless = true
+
+                        local m = obj:FindFirstChildOfClass("SpecialMesh")
+                        if m then m.Scale = Vector3.new(1,1,1) end 
+                    end
+                end
+            end
+        end
+    end
+    _G.Z_Force_Reset = false 
+end)
+
+InfoTab:Section({ Title = "Estado & Actualizaciones" })
+InfoTab:Paragraph({
+    Title = "Información del Hub",
+    Desc = "📌 Versión: v1.0 Bssic\n🟢 Estado: Online\n👤 Creador: @ZNORESTE\n\n¡Gracias por usar Z Nexus!"
+})
+
+InfoTab:Section({ Title = "Comunidad & Redes" })
+
+InfoTab:Button({
+    Title = "Tik tok",
+    Desc = "Haz clic para copiar el enlace",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://www.tiktok.com/@znoreste")
+            WindUI:Notify({ Title = "Copiado", Content = "Enlace de TikTok copiado!", Icon = "check", Duration = 1 })
+        end
+    end
+})
+
+InfoTab:Button({
+    Title = "Discord",
+    Desc = "Haz clic para copiar el enlace",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://discord.gg/")
+            WindUI:Notify({ Title = "Copiado", Content = "Enlace de Discord copiado!", Icon = "check", Duration = 1 })
+        end
+    end
+})
+
+CombatTab:Section({ Title = "Options Nexus" })
+
+CombatTab:Toggle({
+    Title = "Execute Kill Auto",
+    Desc = "Ejecuta la lógica de disparo con predicción y ping.",
+    Flag = "ExecuteKillToggle",
+    Value = false,
+    Callback = function(Value)
+        if Value then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+
+        _G.ExecuteKillActive = Value
+        
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("ExecuteKill", Value, "")
+        end
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Inf Balas",
+    Desc = "Munición Infinita Al Recargar Tu Arma",
+    Flag = "InfBalas",
+    Value = false,
+    Callback = function(Value)
+        if Value then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+
+        _G.Z_GunMods_InfAmmo = Value
+        
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Inf Balas", Value, "")
+        end
+        
+        if _G.Z_GunMods_InfAmmo then
+            hackedTools = {}
+            local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
+            if tool then
+                onToolEquipped(tool)
+            end
+        end
+        
+        if _G.Z_ForceGunScan then 
+            _G.Z_ForceGunScan() 
+        end
+    end
+})
+
+CombatTab:Button({
+    Title = "No Recoil",
+    Flag = "NoRecoil",
+    Color = Color3.fromHex("#305dff"),
+    Icon = nil,
+    Justify = "Center",
+    Callback = function()
+        _G.Z_GunMods_NoRecoil = not _G.Z_GunMods_NoRecoil
+
+        if _G.Z_GunMods_NoRecoil then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("No Recoil", _G.Z_GunMods_NoRecoil, "")
+        end
+
+        if _G.Z_ForceGunScan then 
+            _G.Z_ForceGunScan() 
+        end
+    end
+})
+
+CombatTab:Space()
+
+VisualsTab:Section({ Title = "ESP 2X" })
+
+VisualsTab:Toggle({
+    Title = "Esp 2X",
+    Flag = "Esp2X",
+    Value = _G.Z_ESP_Master,
+    Callback = function(state) 
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        
+        _G.Z_ESP_Master = state 
+        
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Esp 2X", state, "")
+        end
+    end
+})
+
+VisualsTab:Dropdown({
+    Title = "Elemento Activo",
+    Desc = "Elige qué función mostrar en el Esp 2X.",
+    Flag = "EspElements",
+    Values = {"Cajas y HP", "Solo Cajas", "Solo HP", "Ninguno"},
+    Value = "Cajas y HP",
+    Callback = function(selected)
+        if selected == "Cajas y HP" then
+            _G.Z_ESP_Boxes = true
+            _G.Z_ESP_HealthBar = true
+        elseif selected == "Solo Cajas" then
+            _G.Z_ESP_Boxes = true
+            _G.Z_ESP_HealthBar = false
+        elseif selected == "Solo HP" then
+            _G.Z_ESP_Boxes = false
+            _G.Z_ESP_HealthBar = true
+        elseif selected == "Ninguno" then
+            _G.Z_ESP_Boxes = false
+            _G.Z_ESP_HealthBar = false
+        end
+    end
+})
+
+VisualsTab:Toggle({
+    Title = "Team Check",
+    Desc = "Oculta el ESP 2X de tus aliados.",
+    Flag = "EspTeamCheck",
+    Value = _G.Z_ESP_TeamCheck,
+    Callback = function(state) 
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_ESP_TeamCheck = state 
+    end
+})
+
+VisualsTab:Colorpicker({
+    Title = "Color Esp 2X",
+    Flag = "EspColor",
+    Default = _G.Z_ESP_Color,
+    Callback = function(color) 
+        _G.Z_ESP_Color = color
+    end
+})
+
+VisualsTab:Section({ Title = "Esp Tracers" })
+
+VisualsTab:Toggle({
+    Title = "Esp Tracers",
+    Desc = "Dibuja líneas hacia los enemigos.",
+    Flag = "Tracers",
+    Value = _G.Z_Tracers_Enabled,
+    Callback = function(state) 
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_Tracers_Enabled = state 
+        
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Tracers", state, "")
+        end
+    end
+})
+
+VisualsTab:Toggle({
+    Title = "Team Check",
+    Desc = "Oculta el Tracers de tus aliados.",
+    Flag = "Teamx",
+    Value = _G.Z_Tracer_TeamCheck,
+    Callback = function(state) 
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_Tracer_TeamCheck = state 
+        
+        WindUI:Notify({
+            Title = "Z'v2",
+            Content = state and "On" or "Off",
+            Time = 0.5
+        })
+    end
+})
+
+VisualsTab:Slider({
+    Title = "Grosor",
+    Desc = "Grosor del tracer (Recomendado: 0.5)",
+    Flag = "Grosor",
+    Step = 0.5,
+    Value = { Min = 0.5, Max = 5, Default = 1.5 },
+    Callback = function(val) _G.Z_Tracer_Width = val end
+})
+
+VisualsTab:Slider({
+    Title = "Transparencia",
+    Desc = "1: Sólido | 100: Invisible.",
+    Flag = "Trans",
+    Step = 1,
+    Value = { Min = 1, Max = 100, Default = 50 },
+    Callback = function(val) _G.Z_Tracer_Transparency = val / 100 end
+})
+
+VisualsTab:Dropdown({
+    Title = "Ubicación del Esp Tracer",
+    Flag = "Ubicacion",
+    Values = { "Arriba", "Centro", "Abajo" },
+    Value = "Abajo",
+    Callback = function(option) _G.Z_Tracer_Origin = option end
+})
+
+VisualsTab:Colorpicker({
+    Title = "Color Tracer",
+    Flag = "Colorh",
+    Default = _G.Z_Tracer_Color,
+    Callback = function(color) _G.Z_Tracer_Color = color end
+})
+
+VisualsTab:Section({ Title = "ArrayList HUD" })
+
+VisualsTab:Toggle({
+    Title = "Mostrar ArrayList",
+    Desc = "Muestra u oculta la lista de funciones activas en pantalla.",
+    Flag = "ArrayListEnable",
+    Value = _G.Z_ArrayList_Enabled,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_ArrayList_Enabled = state
+        if _G.RefreshArrayListUI then _G.RefreshArrayListUI() end
+    end
+})
+
+VisualsTab:Dropdown({
+    Title = "Color ArrayList",
+    Desc = "Selecciona el tema de color para la lista HUD (Incluye Rainbow RGB).",
+    Flag = "ArrayListTheme",
+    Values = {"Verde", "Morado", "Azul", "RGB", "Personalizado"},
+    Value = _G.Z_ArrayList_ColorMode,
+    Callback = function(selected)
+        _G.Z_ArrayList_ColorMode = selected
+        if _G.RefreshArrayListUI then _G.RefreshArrayListUI() end
+    end
+})
+
+VisualsTab:Colorpicker({
+    Title = "Color Personalizado ArrayList",
+    Flag = "ArrayListCustomColor",
+    Default = _G.Z_ArrayList_CustomColor,
+    Callback = function(color)
+        _G.Z_ArrayList_CustomColor = color
+        if _G.Z_ArrayList_ColorMode == "Personalizado" and _G.RefreshArrayListUI then
+            _G.RefreshArrayListUI()
+        end
+    end
+})
+
+VisualsTab:Slider({
+    Title = "Posición Horizontal (X)",
+    Desc = "Mueve el ArrayList a la izquierda o derecha.",
+    Flag = "ArrayListOffsetX",
+    Step = 1,
+    Value = { Min = -1000, Max = 10, Default = _G.Z_ArrayList_OffsetX },
+    Callback = function(val)
+        _G.Z_ArrayList_OffsetX = val
+        if _G.RefreshArrayListUI then _G.RefreshArrayListUI() end
+    end
+})
+
+VisualsTab:Slider({
+    Title = "Posición Vertical (Y)",
+    Desc = "Mueve el ArrayList hacia arriba o hacia abajo.",
+    Flag = "ArrayListOffsetY",
+    Step = 1,
+    Value = { Min = 0, Max = 600, Default = _G.Z_ArrayList_OffsetY },
+    Callback = function(val)
+        _G.Z_ArrayList_OffsetY = val
+        if _G.RefreshArrayListUI then _G.RefreshArrayListUI() end
+    end
+})
+
+VisualsTab:Slider({
+    Title = "Tamaño de Letras",
+    Desc = "Ajusta qué tan grandes o pequeñas se ven las letras.",
+    Flag = "ArrayListTextSize",
+    Step = 1,
+    Value = { Min = 10, Max = 22, Default = _G.Z_ArrayList_TextSize },
+    Callback = function(val)
+        _G.Z_ArrayList_TextSize = val
+        if _G.RefreshArrayListUI then _G.RefreshArrayListUI() end
+    end
+})
+
+VisualsTab:Slider({
+    Title = "Espaciado entre Lista",
+    Desc = "Ajusta la separación vertical entre cada función activa.",
+    Flag = "ArrayListPadding",
+    Step = 1,
+    Value = { Min = 0, Max = 15, Default = _G.Z_ArrayList_Padding },
+    Callback = function(val)
+        _G.Z_ArrayList_Padding = val
+        if _G.RefreshArrayListUI then _G.RefreshArrayListUI() end
+    end
+})
+
+_G.Z_NoFall_Enabled = _G.Z_NoFall_Enabled or false
+_G.Zinvis = _G.Zinvis or false
+_G.DesyncEnabled = _G.DesyncEnabled or false
+_G.DesyncPower = _G.DesyncPower or 50
+
+OtherTab:Section({ Title = "Movement & Fall Damage" })
+
+OtherTab:Toggle({
+    Title = "No Fall",
+    Desc = "Evita recibir daño por caída sin importar la altura.",
+    Value = _G.Z_NoFall_Enabled,
+    Flag = "Z_NoFall_Flag",
+    Callback = function(Value)
+        if Value then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_NoFall_Enabled = Value
+
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("No Fall", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("No Fall", Value)
+        end
+    end,
+})
+
+OtherTab:Toggle({
+    Title = "Spinbot",
+    Desc = "Hace girar a tu personaje velozmente sin desviar la trayectoria de tus disparos.",
+    Value = _G.Z_Spin_Enabled or false,
+    Flag = "Z_Spin_Toggle_Flag",
+    Callback = function(Value)
+        if Value then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_Spin_Enabled = Value
+
+        if not Value then
+            local lp = Players.LocalPlayer
+            local char = lp and lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.AutoRotate = true
+            end
+        end
+
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("Spinbot", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("Spinbot", Value)
+        end
+    end,
+})
+
+OtherTab:Section({ Title = "Hitbox & Desync" })
+
+OtherTab:Toggle({
+    Title = "ExuVisibilyti",
+    Desc = "Eleva tu Hitbox temporalmente para esquivar impactos directos.",
+    Value = _G.Zinvis,
+    Flag = "Z_ExuVisibilyti",
+    Callback = function(Value)
+        if Value then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Zinvis = Value
+
+        if not Value then
+            local lp = Players.LocalPlayer
+            local char = lp and lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.CameraOffset = Vector3.new(0, 0, 0)
+            end
+        end
+
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("ExuVisibilyti", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("ExuVisibilyti", Value)
+        end
+    end,
+})
+
+OtherTab:Toggle({
+    Title = "Desync God Mode",
+    Desc = "Desincroniza tu Hitbox enviando posiciones falsas al servidor.",
+    Value = _G.DesyncEnabled,
+    Flag = "Z_Desync_Toggle_Flag",
+    Callback = function(Value)
+        if Value then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.DesyncEnabled = Value
+
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("Desync", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("Desync", Value)
+        end
+    end,
+})
+
+OtherTab:Slider({
+    Title = "Potencia Desync",
+    Desc = "Ajusta el rango de la desincronización de tu posición.",
+    Flag = "Z_Desync_Slider_Flag",
+    Step = 1,
+    Value = { Min = 1, Max = 200, Default = _G.DesyncPower },
+    Callback = function(val)
+        _G.DesyncPower = val
+    end
+})
+
+local targetFOV = 70
+
+if _G.FOVConnection then
+    _G.FOVConnection:Disconnect()
+end
+
+_G.FOVConnection = RunService.RenderStepped:Connect(function()
+    if workspace.CurrentCamera then
+        workspace.CurrentCamera.FieldOfView = targetFOV
+    end
+end)
+
+UniversalTab:Section({ Title = "Visuales & Iluminación" })
+
+UniversalTab:Slider({
+    Title = "Campo de Visión (FOV)",
+    Desc = "Ajusta la apertura de la cámara.",
+    Flag = "Uni_FOV",
+    Step = 1,
+    Value = { Min = 70, Max = 120, Default = 70 },
+    Callback = function(v)
+        targetFOV = v
+
+        if _G.UpdateArrayList then
+            local isChanged = (v ~= 70)
+            _G.UpdateArrayList("FOV", isChanged, "[" .. tostring(v) .. "]")
+        end
+    end
+})
+
+UniversalTab:Toggle({
+    Title = "Fullbright (Sin Sombras)",
+    Desc = "Elimina la oscuridad y las sombras del juego.",
+    Flag = "Uni_Fullbright",
+    Value = false,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        local lighting = game:GetService("Lighting")
+
+        if state then
+            lighting.Brightness = 2
+            lighting.ClockTime = 14
+            lighting.FogEnd = 100000
+            lighting.GlobalShadows = false
+        else
+            lighting.Brightness = 1
+            lighting.ClockTime = 12
+            lighting.FogEnd = 10000
+            lighting.GlobalShadows = true
+        end
+
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Fullbright", state, "")
+        end
+    end
+})
+
+UniversalTab:Section({ Title = "Hitbox UNIVERSAL" })
+
+UniversalTab:Toggle({
+    Title = "Hitbox Expander",
+    Desc = "Expande el cuerpo/cabeza de los enemigos.",
+    Flag = "Uni_ZHitbox",
+    Value = false,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_Hitbox_Active = state
+        if not state then
+            _G.Z_Force_Reset = true
+        end
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Hitbox", state, "[" .. tostring(_G.Z_Hitbox_Size) .. "]")
+        end
+    end
+})
+
+UniversalTab:Dropdown({
+    Title = "Parte Objetiva",
+    Desc = "Selecciona la zona a agrandar.",
+    Flag = "nxl",
+    Values = { "Head", "Torso", "Huesos" },
+    Default = "Head",
+    Callback = function(option)
+        _G.Z_Force_Reset = true
+        _G.Z_Hitbox_Mode = option
+    end
+})
+
+UniversalTab:Slider({
+    Title = "Tamaño Hitbox",
+    Desc = "Ajusta la escala de la caja de impacto.",
+    Flag = "Uni_ZHitboxSize",
+    Step = 1,
+    Value = { Min = 2, Max = 50, Default = 20 },
+    Callback = function(v)
+        _G.Z_Hitbox_Size = v
+        if _G.Z_Hitbox_Active and _G.UpdateArrayList then
+            _G.UpdateArrayList("Hitbox Expander", true, "[" .. tostring(v) .. "]")
+        end
+    end
+})
+
+UniversalTab:Toggle({
+    Title = "Team Check",
+    Desc = "Ignora a los jugadores de tu mismo equipo.",
+    Flag = "Uni_ZTeamCheck",
+    Value = true,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Z_Team_Check = state
+        _G.Z_Force_Reset = true
+    end
+})
+
+-- // 🎯 AIMBOT CAMLOCK // --
+_G.Aimbot_Enabled = false
+_G.Aimbot_Smoothness = 0.2
+_G.Aimbot_FOV = 150
+_G.Aimbot_Part = "Head"
+_G.Aimbot_TeamCheck = true
+_G.Aimbot_WallCheck = true
+_G.Aimbot_ShowFOV = false
+_G.Aimbot_Prediction = 0.12
+_G.Aimbot_MaxDistance = 5000
+
+local currentTarget = nil
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1.5
+FOVCircle.Color = Color3.fromRGB(255, 50, 50)
+FOVCircle.Transparency = 0.7
+FOVCircle.Filled = false
+FOVCircle.Visible = false
+
+local function getScreenCenter()
+    return Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+end
+
+local function isPartVisible(part)
+    if not _G.Aimbot_WallCheck then return true end
+    local char = LocalPlayer.Character
+    if not char then return false end
+
+    local origin = Camera.CFrame.Position
+    local destination = part.Position
+    local direction = destination - origin
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = { char, part.Parent }
+    raycastParams.IgnoreWater = true
+
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    return result == nil
+end
+
+local function getTarget()
+    local centerPos = getScreenCenter()
+    local localChar = LocalPlayer.Character
+    local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
+
+    if currentTarget and currentTarget.Parent then
+        local char = currentTarget.Parent
+        local player = Players:GetPlayerFromCharacter(char)
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local rootPart = char:FindFirstChild("HumanoidRootPart")
+        
+        local isTeam = _G.Aimbot_TeamCheck and LocalPlayer.Team and player and player.Team == LocalPlayer.Team
+        local passesAntiBot = (_G.IsRealPlayer and player) and _G.IsRealPlayer(player) or true
+
+        local inRange = true
+        if localRoot and rootPart then
+            local worldDist = (rootPart.Position - localRoot.Position).Magnitude
+            if worldDist > _G.Aimbot_MaxDistance then
+                inRange = false
+            end
+        end
+
+        if player and humanoid and humanoid.Health > 0 and inRange and passesAntiBot and not isTeam and isPartVisible(currentTarget) then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
+                if dist <= _G.Aimbot_FOV then
+                    return currentTarget
+                end
+            end
+        end
+    end
+
+    currentTarget = nil
+    local closest = nil
+    local minDistance = _G.Aimbot_FOV
+
+    local validPlayers = _G.GetRealPlayers and _G.GetRealPlayers() or Players:GetPlayers()
+
+    for _, player in pairs(validPlayers) do
+        if player ~= LocalPlayer and player.Character then
+            local isTeam = _G.Aimbot_TeamCheck and LocalPlayer.Team and player.Team == LocalPlayer.Team
+            if not isTeam then
+                local character = player.Character
+                local targetPart = character:FindFirstChild(_G.Aimbot_Part)
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+
+                if targetPart and humanoid and humanoid.Health > 0 and rootPart then
+                    local worldDist = localRoot and (rootPart.Position - localRoot.Position).Magnitude or 0
+                    if worldDist <= _G.Aimbot_MaxDistance then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen and isPartVisible(targetPart) then
+                            local dist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
+                            if dist < minDistance then
+                                minDistance = dist
+                                closest = targetPart
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    currentTarget = closest
+    return currentTarget
+end
+
+RunService.RenderStepped:Connect(function()
+    local centerPos = getScreenCenter()
+    FOVCircle.Position = centerPos
+    FOVCircle.Radius = _G.Aimbot_FOV
+    FOVCircle.Visible = _G.Aimbot_ShowFOV and _G.Aimbot_Enabled
+
+    if _G.Aimbot_Enabled then
+        local target = getTarget()
+        if target then
+            local char = target.Parent
+            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+            local velocity = (rootPart and rootPart.AssemblyLinearVelocity) or Vector3.new(0, 0, 0)
+            local predictedPosition = target.Position + (velocity * _G.Aimbot_Prediction)
+            
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, predictedPosition)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.Aimbot_Smoothness)
+        end
+    else
+        currentTarget = nil
+    end
+end)
+
+CombatTab:Section({ Title = "Aimbot & Asistencia" })
+
+CombatTab:Toggle({
+    Title = "Aimbot CamLock",
+    Desc = "Fija la mira en el enemigo dentro del FOV.",
+    Flag = "Combat_Aimbot",
+    Value = false,
+    Callback = function(state)
+        if state and _G.PlayOptionActivated then
+            _G.PlayOptionActivated()
+        end
+        _G.Aimbot_Enabled = state
+        if not state then currentTarget = nil end
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Aimbot", state, "[" .. _G.Aimbot_Part .. "]")
+        end
+    end
+})
+
+CombatTab:Dropdown({
+    Title = "Objetivo",
+    Desc = "Selecciona la parte del cuerpo a apuntar.",
+    Flag = "Hed",
+    Values = { "Head", "Torso", "HumanoidRootPart" },
+    Default = "Head",
+    Callback = function(option)
+        _G.Aimbot_Part = option
+        currentTarget = nil
+        if _G.Aimbot_Enabled and _G.UpdateArrayList then
+            _G.UpdateArrayList("Aimbot", true, "[" .. option .. "]")
+        end
+    end
+})
+
+CombatTab:Slider({
+    Title = "Suavizado (Smoothness)",
+    Desc = "Menor valor = movimiento más natural.",
+    Flag = "Combat_Smooth",
+    Step = 0.05,
+    Value = { Min = 0.05, Max = 1, Default = 0.2 },
+    Callback = function(v)
+        _G.Aimbot_Smoothness = v
+    end
+})
+
+CombatTab:Slider({
+    Title = "Predicción de Movimiento",
+    Desc = "Adelanta la mira al disparar a blancos rápidos.",
+    Flag = "Combat_Prediction",
+    Step = 0.01,
+    Value = { Min = 0, Max = 0.3, Default = 0.12 },
+    Callback = function(v)
+        _G.Aimbot_Prediction = v
+    end
+})
+
+CombatTab:Slider({
+    Title = "Distancia Máxima (Studs)",
+    Desc = "Rango máximo permitido para enganchar enemigos.",
+    Flag = "Combat_MaxDistance",
+    Step = 50,
+    Value = { Min = 1, Max = 5000, Default = 5000 },
+    Callback = function(v)
+        _G.Aimbot_MaxDistance = v
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Mostrar Círculo FOV",
+    Desc = "Dibuja el radio de detección en el centro.",
+    Flag = "Combat_ShowFOV",
+    Value = false,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Aimbot_ShowFOV = state
+    end
+})
+
+CombatTab:Slider({
+    Title = "Radio del Círculo FOV",
+    Desc = "Ajusta el tamaño límite para enganchar enemigos.",
+    Flag = "Combat_FOVSize",
+    Step = 10,
+    Value = { Min = 20, Max = 500, Default = 150 },
+    Callback = function(v)
+        _G.Aimbot_FOV = v
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Team Check",
+    Desc = "No fija la mira en compañeros de equipo.",
+    Flag = "Combat_TeamCheck",
+    Value = true,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Aimbot_TeamCheck = state
+        currentTarget = nil
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Wall Check",
+    Desc = "Ignora a los enemigos detrás de paredes u objetos.",
+    Flag = "Combat_WallCheck",
+    Value = true,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Aimbot_WallCheck = state
+        currentTarget = nil
+    end
+})
+
+--// SILENT AIM CORREGIDO (CON WALLBANG Y RAYCAST FIABLE) //--
+_G.Silent_Enabled = false
+_G.Silent_Range = 150
+_G.Silent_FOV = 120
+_G.Silent_ShowFOV = false
+_G.Silent_TeamCheck = true
+_G.Silent_Mode = "Normal"
+
+local CurrentTargetSilent = nil
+local WeaponEquipped = false
+local IsShooting = false
+local OriginalCameraCFrame = nil
+local CameraLocked = false
+
+local TracerSilent = Drawing.new("Line")
+TracerSilent.Thickness = 2
+TracerSilent.Color = Color3.fromRGB(0, 0, 0)
+TracerSilent.Visible = false
+
+local FOVCircleSilent = Drawing.new("Circle")
+FOVCircleSilent.Thickness = 1.5
+FOVCircleSilent.Color = Color3.fromRGB(255, 255, 255)
+FOVCircleSilent.Transparency = 0.7
+FOVCircleSilent.Filled = false
+FOVCircleSilent.Visible = false
+
+local function getClosestTargetSilent()
+    local centerPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local char = LocalPlayer.Character
+    if not char or not char.PrimaryPart then return nil end
+    local localPos = char.PrimaryPart.Position
+    local closest = nil
+    local minDist = math.huge
+
+    local validPlayers = _G.GetRealPlayers and _G.GetRealPlayers() or Players:GetPlayers()
+
+    for _, pl in pairs(validPlayers) do
+        if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("Head") then
+            local isTeam = _G.Silent_TeamCheck and LocalPlayer.Team and pl.Team and pl.Team == LocalPlayer.Team
+            if not isTeam then
+                local humanoid = pl.Character:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local passesAntiBot = _G.IsRealPlayer and _G.IsRealPlayer(pl) or true
+                    if passesAntiBot then
+                        local head = pl.Character.Head
+                        local dist = (localPos - head.Position).Magnitude
+                        
+                        if dist <= _G.Silent_Range then
+                            local sp, onScreen = Camera:WorldToViewportPoint(head.Position)
+                            if onScreen then
+                                local screenDist = (Vector2.new(sp.X, sp.Y) - centerPos).Magnitude
+                                if screenDist <= _G.Silent_FOV and dist < minDist then
+                                    minDist = dist
+                                    closest = head
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function checkWeapon()
+    local char = LocalPlayer.Character
+    if not char then 
+        WeaponEquipped = false
+        return 
+    end
+    local tool = char:FindFirstChildWhichIsA("Tool")
+    WeaponEquipped = tool and true or false
+end
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+    local method = getnamecallmethod()
+    local args = {...}
+    local self = args[1]
+
+    if _G.Silent_Enabled and not checkcaller() and self == workspace and method == "Raycast" then
+        local origin = args[2]
+        local direction = args[3]
+        local params = args[4]
+        if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" and CurrentTargetSilent then
+            if not params then
+                params = RaycastParams.new()
+            end
+            pcall(function()
+                params.FilterType = Enum.RaycastFilterType.Include
+                params.FilterDescendantsInstances = {CurrentTargetSilent.Parent}
+            end)
+            args[3] = (CurrentTargetSilent.Position - origin).Unit * math.max(direction.Magnitude, (CurrentTargetSilent.Position - origin).Magnitude + 500)
+            args[4] = params
+            return oldNamecall(unpack(args))
+        end
+    end
+
+    if _G.Silent_Enabled and not checkcaller() and WeaponEquipped then
+        local recoilMethods = {"ApplyRecoil", "AddRecoil", "DoRecoil"}
+        for _, rm in pairs(recoilMethods) do
+            if method == rm then return nil end
+        end
+    end
+
+    return oldNamecall(...)
+end))
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or not _G.Silent_Enabled then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        IsShooting = true
+        if WeaponEquipped then
+            OriginalCameraCFrame = Camera.CFrame
+            CameraLocked = true
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        IsShooting = false
+        CameraLocked = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    local vp = Camera.ViewportSize
+    local center = Vector2.new(vp.X/2, vp.Y/2)
+
+    checkWeapon()
+    CurrentTargetSilent = _G.Silent_Enabled and getClosestTargetSilent() or nil
+
+    FOVCircleSilent.Position = center
+    FOVCircleSilent.Radius = _G.Silent_FOV
+    FOVCircleSilent.Visible = _G.Silent_Enabled and _G.Silent_ShowFOV
+
+    if CurrentTargetSilent and _G.Silent_Enabled then
+        local sp, onScreen = Camera:WorldToViewportPoint(CurrentTargetSilent.Position)
+        if onScreen then
+            local tp = Vector2.new(sp.X, sp.Y)
+            TracerSilent.From = center
+            TracerSilent.To = tp
+            TracerSilent.Visible = true
+        else
+            TracerSilent.Visible = false
+        end
+    else
+        TracerSilent.Visible = false
+    end
+
+    if CameraLocked and OriginalCameraCFrame then
+        Camera.CFrame = OriginalCameraCFrame
+    end
+end)
+
+SilentTab:Section({ Title = "Silent Aim Config" })
+
+SilentTab:Toggle({
+    Title = "Silent Aim",
+    Desc = "Desvía tus disparos automáticamente al blanco más cercano.",
+    Flag = "Silent_Enabled",
+    Value = false,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        
+        _G.Silent_Enabled = state
+        if not state then 
+            CurrentTargetSilent = nil
+            TracerSilent.Visible = false
+            FOVCircleSilent.Visible = false
+        end
+
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("SilentAim", state, "[" .. _G.Silent_Mode .. "]")
+        end
+    end
+})
+
+SilentTab:Dropdown({
+    Title = "Modo Silent Aim",
+    Desc = "Selecciona el modo de funcionamiento.",
+    Flag = "MoDo",
+    Values = { "Normal", "Insta" },
+    Default = "Normal",
+    Callback = function(option)
+        _G.Silent_Mode = option
+        if _G.Silent_Enabled and _G.UpdateArrayList then
+            _G.UpdateArrayList("SilentAim", true, "[" .. option .. "]")
+        end
+    end
+})
+
+SilentTab:Toggle({
+    Title = "Mostrar FOV",
+    Desc = "Muestra u oculta el círculo de rango central.",
+    Flag = "Silent_ShowFOV",
+    Value = false,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Silent_ShowFOV = state
+    end
+})
+
+SilentTab:Toggle({
+    Title = "Team Check",
+    Desc = "Ignora a los jugadores de tu mismo equipo.",
+    Flag = "Silent_TeamCheck",
+    Value = _G.Silent_TeamCheck,
+    Callback = function(state)
+        if state then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+        end
+        _G.Silent_TeamCheck = state
+        CurrentTargetSilent = nil
+    end
+})
+
+SilentTab:Slider({
+    Title = "Rango de Distancia",
+    Desc = "Distancia máxima en studs para detectar objetivos.",
+    Flag = "Silent_Range",
+    Step = 10,
+    Value = { Min = 10, Max = 5000, Default = 150 },
+    Callback = function(v)
+        _G.Silent_Range = v
+    end
+})
+
+SilentTab:Slider({
+    Title = "Radio FOV",
+    Desc = "Tamaño del área de detección central.",
+    Flag = "Silent_FOV",
+    Step = 10,
+    Value = { Min = 20, Max = 500, Default = 120 },
+    Callback = function(v)
+        _G.Silent_FOV = v
+    end
+})
+
+ConfigTab:Section({ Title = "Gestor de Configuraciones (Max. 5)" })
+
+local ConfigLimit = 5
+local SaveConfigName = ""
+local SelectedConfig = nil
+local ConfigDropdown
+
+local function GetConfigFolderPath()
+    local path1 = "WindUI/" .. Window.Folder .. "/config"
+    local path2 = "WindUI/" .. Window.Folder .. "/configs"
+    if isfolder and isfolder(path1) then return path1 end
+    if isfolder and isfolder(path2) then return path2 end
+    return path1
+end
+
+local function GetSavedConfigs()
+    local list = {}
+    local path = GetConfigFolderPath()
+    if listfiles and isfolder and isfolder(path) then
+        local files = listfiles(path)
+        for _, filePath in ipairs(files) do
+            local fileName = filePath:match("([^/\\]+)%.json$")
+            if fileName and fileName ~= "" then
+                table.insert(list, fileName)
+            end
+        end
+    end
+    return list
+end
+
+local StatusParagraph = ConfigTab:Paragraph({
+    Title = "Estado de Configuraciones",
+    Desc = "Cargando..."
+})
+
+local function RefreshConfigList()
+    local saved = GetSavedConfigs()
+    StatusParagraph:SetDesc("Configuraciones guardadas: " .. tostring(#saved) .. " / " .. tostring(ConfigLimit))
+    if ConfigDropdown then
+        if ConfigDropdown.SetValues then
+            ConfigDropdown:SetValues(saved)
+        elseif ConfigDropdown.Refresh then
+            ConfigDropdown:Refresh(saved)
+        end
+    end
+end
+
+ConfigDropdown = ConfigTab:Dropdown({
+    Title = "Seleccionar Configuracion",
+    Desc = "Elige una configuracion guardada para cargar o eliminar",
+    Values = GetSavedConfigs(),
+    Value = "",
+    Callback = function(selected)
+        SelectedConfig = selected
+    end
+})
+
+ConfigTab:Button({
+    Title = "Cargar Configuracion Seleccionada",
+    Desc = "Aplica los ajustes de la config elegida en la lista",
+    Callback = function()
+        if not SelectedConfig or SelectedConfig == "" then
+            WindUI:Notify({ Title = "Error", Content = "Selecciona una config de la lista desplegable.", Icon = "x", Duration = 3 })
+            return
+        end
+
+        local MyConfig = Window.ConfigManager:Config(SelectedConfig)
+        MyConfig:Load()
+
+        WindUI:Notify({ Title = "Cargado", Content = "Config cargada: " .. SelectedConfig, Icon = "check", Duration = 3 })
+    end
+})
+
+ConfigTab:Section({ Title = "Save Settings" })
+
+ConfigTab:Input({
+    Title = "Nombre de la Configuracion",
+    Desc = "Escribe un nombre para crear o sobrescribir",
+    Value = "",
+    PlaceholderText = "Ejemplo: legit_pvp",
+    Callback = function(text)
+        SaveConfigName = text
+    end
+})
+
+ConfigTab:Button({
+    Title = "Crear / Guardar Configuracion",
+    Desc = "Guarda los ajustes actuales con el nombre escrito arriba",
+    Callback = function()
+        if not SaveConfigName or SaveConfigName == "" then
+            WindUI:Notify({ Title = "Error", Content = "Escribe un nombre en la casilla superior.", Icon = "x", Duration = 3 })
+            return
+        end
+
+        local saved = GetSavedConfigs()
+        local alreadyExists = false
+        for _, name in ipairs(saved) do
+            if name == SaveConfigName then
+                alreadyExists = true
+                break
+            end
+        end
+
+        if not alreadyExists and #saved >= ConfigLimit then
+            WindUI:Notify({ Title = "Limite Alcanzado", Content = "Ya tienes 5 configs guardadas.", Icon = "alert-triangle", Duration = 4 })
+            return
+        end
+
+        local MyConfig = Window.ConfigManager:Config(SaveConfigName)
+        MyConfig:Save()
+
+        task.wait(0.3)
+        RefreshConfigList()
+
+        WindUI:Notify({ Title = "Guardado", Content = "Config guardada: " .. SaveConfigName, Icon = "check", Duration = 3 })
+    end
+})
+
+ConfigTab:Button({
+    Title = "Eliminar Configuracion Seleccionada",
+    Desc = "Borra el archivo .json de la config elegida",
+    Callback = function()
+        if not SelectedConfig or SelectedConfig == "" then
+            WindUI:Notify({ Title = "Error", Content = "Selecciona una config para eliminar.", Icon = "x", Duration = 3 })
+            return
+        end
+
+        local folderPath = GetConfigFolderPath()
+        local filePath = folderPath .. "/" .. SelectedConfig .. ".json"
+
+        if isfile and isfile(filePath) and delfile then
+            delfile(filePath)
+            WindUI:Notify({ Title = "Eliminado", Content = "Se elimino: " .. SelectedConfig, Icon = "trash", Duration = 3 })
+        else
+            WindUI:Notify({ Title = "Aviso", Content = "No se encontro la config en carpeta.", Icon = "alert-triangle", Duration = 3 })
+        end
+
+        SelectedConfig = nil
+        task.wait(0.3)
+        RefreshConfigList()
+    end
+})
+
+RefreshConfigList()
+InfoTab:Select()
+
+WindUI:Notify({
+    Title = "Z Nexus",
+    Content = "...",
+    Icon = "check",
+    Duration = 1,
+})
