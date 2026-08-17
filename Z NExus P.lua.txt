@@ -286,13 +286,13 @@ local Window = WindUI:CreateWindow({
 
     Topbar = {
         Height = 44,
-        ButtonsType = "Mac", 
+        ButtonsType = "", 
     },
 
     KeySystem = {
         Key = { "wnexus", "" },
         Note = "Ingresa tu Key para acceder. Si no la tienes unete al discord.",
-        URL = "https://raw.githubusercontent.com/Beto321df/oiioidjasfdhsf/main/file_000000003f08823081949111cf08d967.png",
+        URL = "https://discord.gg/xjbhK2hdT",
         SaveKey = false,
     },
 
@@ -971,7 +971,7 @@ InfoTab:Button({
     Desc = "Haz clic para copiar el enlace",
     Callback = function()
         if setclipboard then
-            setclipboard("https://discord.gg/")
+            setclipboard("https://discord.gg/6yw4xFPE6")
             WindUI:Notify({ Title = "Copiado", Content = "Enlace de Discord copiado!", Icon = "check", Duration = 1 })
         end
     end
