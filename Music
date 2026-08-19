@@ -1,0 +1,839 @@
+local CoreGui = game:GetService("CoreGui")
+local SoundService = game:GetService("SoundService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = Workspace.CurrentCamera
+
+-- Resolver función request compatible con cualquier ejecutor
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
+if not httpRequest then
+    warn("NexusMusic: Advertencia, el ejecutor no soporta peticiones HTTP avanzadas (request). El contador online podría fallar.")
+end
+
+-- Configuración Firebase
+local DATABASE_URL = "https://nexus-online-w-default-rtdb.firebaseio.com/"
+local userId = tostring(LocalPlayer.UserId)
+local sessionKey = userId 
+
+-- Crear carpetas en Workspace
+local musicFolderName = "utils music"
+local utilsMusicFolder = Workspace:FindFirstChild(musicFolderName)
+if not utilsMusicFolder then
+    utilsMusicFolder = Instance.new("Folder")
+    utilsMusicFolder.Name = musicFolderName
+    utilsMusicFolder.Parent = Workspace
+end
+
+local iconsFolderName = "iconos"
+local iconsFolder = Workspace:FindFirstChild(iconsFolderName)
+if not iconsFolder then
+    iconsFolder = Instance.new("Folder")
+    iconsFolder.Name = iconsFolderName
+    iconsFolder.Parent = Workspace
+end
+
+-- Limpiar UI anterior
+if CoreGui:FindFirstChild("NexusMusicProUI") then
+    CoreGui.NexusMusicProUI:Destroy()
+end
+
+-- ============ SISTEMA DE ESCALADO RESPONSIVE ============
+local viewportSize = Camera.ViewportSize
+local scaleFactor = math.min(1, viewportSize.X / 520, viewportSize.Y / 720)
+
+-- Ajuste especial para dispositivos táctiles
+if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+    scaleFactor = math.min(scaleFactor, 0.75) -- Móvil: reducir más
+end
+
+-- Evitar que sea demasiado pequeño
+scaleFactor = math.max(scaleFactor, 0.55)
+
+-- Crear ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NexusMusicProUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+
+-- Aplicar escala global
+local UIScale = Instance.new("UIScale")
+UIScale.Scale = scaleFactor
+UIScale.Parent = ScreenGui
+
+-- ============ VENTANA PRINCIPAL ============
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MainFrame.BorderSizePixel = 0
+-- Centrar en pantalla
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = UDim2.new(0, 400, 0, 550)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ClipsDescendants = false
+
+-- Sombra
+local Shadow = Instance.new("Frame")
+Shadow.Name = "Shadow"
+Shadow.Parent = MainFrame
+Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.BackgroundTransparency = 0.5
+Shadow.BorderSizePixel = 0
+Shadow.Position = UDim2.new(0, 5, 0, 5)
+Shadow.Size = UDim2.new(1, 0, 1, 0)
+Shadow.ZIndex = 0
+
+-- Fondo principal con gradiente
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Parent = MainFrame
+MainGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 15, 35)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(10, 10, 20)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 15, 40))
+})
+MainGradient.Rotation = 45
+
+-- Borde con gradiente animado
+local Stroke = Instance.new("UIStroke")
+Stroke.Parent = MainFrame
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(255, 255, 255)
+Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local StrokeGradient = Instance.new("UIGradient")
+StrokeGradient.Parent = Stroke
+StrokeGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 0, 255)),
+    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 0, 128)),
+    ColorSequenceKeypoint.new(0.66, Color3.fromRGB(100, 0, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 0, 255))
+})
+StrokeGradient.Rotation = 90
+
+-- Esquinas redondeadas
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+-- ============ CABECERA ============
+local HeaderBar = Instance.new("Frame")
+HeaderBar.Parent = MainFrame
+HeaderBar.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
+HeaderBar.BackgroundTransparency = 0.3
+HeaderBar.BorderSizePixel = 0
+HeaderBar.Position = UDim2.new(0, 0, 0, 0)
+HeaderBar.Size = UDim2.new(1, 0, 0, 60)
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 16)
+HeaderCorner.Parent = HeaderBar
+
+-- Logo
+local LogoFrame = Instance.new("Frame")
+LogoFrame.Parent = HeaderBar
+LogoFrame.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
+LogoFrame.BorderSizePixel = 0
+LogoFrame.Position = UDim2.new(0, 15, 0, 15)
+LogoFrame.Size = UDim2.new(0, 30, 0, 30)
+
+local LogoGradient = Instance.new("UIGradient")
+LogoGradient.Parent = LogoFrame
+LogoGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 0, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 128))
+})
+LogoGradient.Rotation = 45
+
+local LogoCorner = Instance.new("UICorner")
+LogoCorner.CornerRadius = UDim.new(0, 8)
+LogoCorner.Parent = LogoFrame
+
+local LogoText = Instance.new("TextLabel")
+LogoText.Parent = LogoFrame
+LogoText.BackgroundTransparency = 1
+LogoText.Position = UDim2.new(0, 0, 0, 0)
+LogoText.Size = UDim2.new(1, 0, 1, 0)
+LogoText.Font = Enum.Font.GothamBold
+LogoText.Text = "♫"
+LogoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+LogoText.TextSize = 18
+
+-- Título
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = HeaderBar
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 55, 0, 12)
+TitleLabel.Size = UDim2.new(1, -120, 0, 24)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "NEXUS MUSIC"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Sub título
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Parent = HeaderBar
+SubTitle.BackgroundTransparency = 1
+SubTitle.Position = UDim2.new(0, 55, 0, 35)
+SubTitle.Size = UDim2.new(1, -120, 0, 18)
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.Text = "PRO EDITION v4.0"
+SubTitle.TextColor3 = Color3.fromRGB(160, 140, 200)
+SubTitle.TextSize = 10
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Botón Minimizar
+local MinBtn = Instance.new("TextButton")
+MinBtn.Parent = HeaderBar
+MinBtn.BackgroundColor3 = Color3.fromRGB(30, 25, 45)
+MinBtn.BorderSizePixel = 0
+MinBtn.Position = UDim2.new(1, -40, 0, 15)
+MinBtn.Size = UDim2.new(0, 28, 0, 28)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.Text = "−"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 16
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinBtn
+
+-- ============ BUSCADOR ============
+local SearchContainer = Instance.new("Frame")
+SearchContainer.Parent = MainFrame
+SearchContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+SearchContainer.BorderSizePixel = 0
+SearchContainer.Position = UDim2.new(0, 15, 0, 75)
+SearchContainer.Size = UDim2.new(1, -30, 0, 40)
+
+local SearchCorner = Instance.new("UICorner")
+SearchCorner.CornerRadius = UDim.new(0, 10)
+SearchCorner.Parent = SearchContainer
+
+local SearchIcon = Instance.new("ImageLabel")
+SearchIcon.Parent = SearchContainer
+SearchIcon.BackgroundTransparency = 1
+SearchIcon.Position = UDim2.new(0, 12, 0.5, -8)
+SearchIcon.Size = UDim2.new(0, 16, 0, 16)
+SearchIcon.ScaleType = Enum.ScaleType.Fit
+SearchIcon.ImageTransparency = 0.5
+SearchIcon.ZIndex = 2
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Parent = SearchContainer
+SearchBox.BackgroundTransparency = 1
+SearchBox.BorderSizePixel = 0
+SearchBox.Position = UDim2.new(0, 35, 0, 0)
+SearchBox.Size = UDim2.new(1, -45, 1, 0)
+SearchBox.Font = Enum.Font.GothamMedium
+SearchBox.PlaceholderText = "Buscar canción..."
+SearchBox.PlaceholderColor3 = Color3.fromRGB(110, 110, 140)
+SearchBox.Text = ""
+SearchBox.TextColor3 = Color3.fromRGB(240, 240, 255)
+SearchBox.TextSize = 13
+SearchBox.ClearTextOnFocus = false
+
+-- ============ LISTA DE REPRODUCCIÓN ============
+local ListContainer = Instance.new("Frame")
+ListContainer.Parent = MainFrame
+ListContainer.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+ListContainer.BorderSizePixel = 0
+ListContainer.Position = UDim2.new(0, 15, 0, 125)
+ListContainer.Size = UDim2.new(1, -30, 0, 200)
+
+local ListCorner = Instance.new("UICorner")
+ListCorner.CornerRadius = UDim.new(0, 10)
+ListCorner.Parent = ListContainer
+
+local ScrollingList = Instance.new("ScrollingFrame")
+ScrollingList.Parent = ListContainer
+ScrollingList.BackgroundTransparency = 1
+ScrollingList.BorderSizePixel = 0
+ScrollingList.Position = UDim2.new(0, 5, 0, 5)
+ScrollingList.Size = UDim2.new(1, -10, 1, -10)
+ScrollingList.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingList.ScrollBarThickness = 3
+ScrollingList.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 255)
+ScrollingList.ScrollingDirection = Enum.ScrollingDirection.Y
+ScrollingList.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingList
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 4)
+
+-- ============ TARJETA DE REPRODUCCIÓN ============
+local PlayerCard = Instance.new("Frame")
+PlayerCard.Parent = MainFrame
+PlayerCard.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
+PlayerCard.BorderSizePixel = 0
+PlayerCard.Position = UDim2.new(0, 15, 0, 340)
+PlayerCard.Size = UDim2.new(1, -30, 0, 100)
+
+local CardCorner = Instance.new("UICorner")
+CardCorner.CornerRadius = UDim.new(0, 10)
+CardCorner.Parent = PlayerCard
+
+local CardPulse = Instance.new("UIGradient")
+CardPulse.Parent = PlayerCard
+CardPulse.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 20, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 15, 35))
+})
+
+local CardIcon = Instance.new("ImageLabel")
+CardIcon.Parent = PlayerCard
+CardIcon.BackgroundTransparency = 1
+CardIcon.Position = UDim2.new(0, 10, 0, 10)
+CardIcon.Size = UDim2.new(0, 20, 0, 20)
+CardIcon.ScaleType = Enum.ScaleType.Fit
+CardIcon.ImageTransparency = 0.5
+
+local CurrentTrackLabel = Instance.new("TextLabel")
+CurrentTrackLabel.Parent = PlayerCard
+CurrentTrackLabel.BackgroundTransparency = 1
+CurrentTrackLabel.Position = UDim2.new(0, 35, 0, 5)
+CurrentTrackLabel.Size = UDim2.new(1, -45, 0, 22)
+CurrentTrackLabel.Font = Enum.Font.GothamBold
+CurrentTrackLabel.Text = "Ninguna canción"
+CurrentTrackLabel.TextColor3 = Color3.fromRGB(220, 180, 255)
+CurrentTrackLabel.TextSize = 12
+CurrentTrackLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = PlayerCard
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 10, 0, 28)
+StatusLabel.Size = UDim2.new(1, -20, 0, 16)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Listo para reproducir"
+StatusLabel.TextColor3 = Color3.fromRGB(140, 130, 170)
+StatusLabel.TextSize = 10
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local ProgressBarBg = Instance.new("Frame")
+ProgressBarBg.Parent = PlayerCard
+ProgressBarBg.BackgroundColor3 = Color3.fromRGB(35, 30, 50)
+ProgressBarBg.BorderSizePixel = 0
+ProgressBarBg.Position = UDim2.new(0, 10, 0, 55)
+ProgressBarBg.Size = UDim2.new(1, -20, 0, 8)
+
+local BarCorner = Instance.new("UICorner")
+BarCorner.CornerRadius = UDim.new(1, 0)
+BarCorner.Parent = ProgressBarBg
+
+local ProgressBar = Instance.new("Frame")
+ProgressBar.Parent = ProgressBarBg
+ProgressBar.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
+ProgressBar.BorderSizePixel = 0
+ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+
+local ProgressCorner = Instance.new("UICorner")
+ProgressCorner.CornerRadius = UDim.new(1, 0)
+ProgressCorner.Parent = ProgressBar
+
+local ProgressGradient = Instance.new("UIGradient")
+ProgressGradient.Parent = ProgressBar
+ProgressGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 0, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 128)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 0, 255))
+})
+ProgressGradient.Rotation = 90
+
+local TimeLabel = Instance.new("TextLabel")
+TimeLabel.Parent = PlayerCard
+TimeLabel.BackgroundTransparency = 1
+TimeLabel.Position = UDim2.new(0, 10, 0, 70)
+TimeLabel.Size = UDim2.new(1, -20, 0, 20)
+TimeLabel.Font = Enum.Font.GothamMedium
+TimeLabel.Text = "00:00 / 00:00"
+TimeLabel.TextColor3 = Color3.fromRGB(160, 150, 190)
+TimeLabel.TextSize = 10
+TimeLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- ============ CONTADOR ONLINE ============
+local OnlineContainer = Instance.new("Frame")
+OnlineContainer.Parent = MainFrame
+OnlineContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+OnlineContainer.BorderSizePixel = 0
+OnlineContainer.Position = UDim2.new(0, 15, 0, 455)
+OnlineContainer.Size = UDim2.new(1, -30, 0, 30)
+
+local OnlineCorner = Instance.new("UICorner")
+OnlineCorner.CornerRadius = UDim.new(0, 8)
+OnlineCorner.Parent = OnlineContainer
+
+local OnlineIcon = Instance.new("ImageLabel")
+OnlineIcon.Name = "OnlineIcon"
+OnlineIcon.Parent = OnlineContainer
+OnlineIcon.BackgroundTransparency = 1
+OnlineIcon.Position = UDim2.new(0, 10, 0.5, -8)
+OnlineIcon.Size = UDim2.new(0, 16, 0, 16)
+OnlineIcon.ScaleType = Enum.ScaleType.Fit
+OnlineIcon.ImageTransparency = 0.5
+
+local OnlineDot = Instance.new("Frame")
+OnlineDot.Parent = OnlineContainer
+OnlineDot.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+OnlineDot.BorderSizePixel = 0
+OnlineDot.Position = UDim2.new(0, 15, 0.5, -3)
+OnlineDot.Size = UDim2.new(0, 6, 0, 6)
+OnlineDot.ZIndex = 2
+
+local OnlineDotCorner = Instance.new("UICorner")
+OnlineDotCorner.CornerRadius = UDim.new(1, 0)
+OnlineDotCorner.Parent = OnlineDot
+
+local OnlineLabel = Instance.new("TextLabel")
+OnlineLabel.Parent = OnlineContainer
+OnlineLabel.BackgroundTransparency = 1
+OnlineLabel.Position = UDim2.new(0, 30, 0, 0)
+OnlineLabel.Size = UDim2.new(1, -40, 1, 0)
+OnlineLabel.Font = Enum.Font.GothamBold
+OnlineLabel.Text = "Conectando..."
+OnlineLabel.TextColor3 = Color3.fromRGB(0, 255, 180)
+OnlineLabel.TextSize = 11
+OnlineLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- ============ BOTONES DE CONTROL ============
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Parent = MainFrame
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.Position = UDim2.new(0, 15, 0, 500)
+ButtonContainer.Size = UDim2.new(1, -30, 0, 40)
+
+local function createControlButton(name, position, size, color1, color2)
+    local btn = Instance.new("ImageButton")
+    btn.Name = name
+    btn.Parent = ButtonContainer
+    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BorderSizePixel = 0
+    btn.Position = UDim2.new(position, 0, 0, 0)
+    btn.Size = UDim2.new(size, 0, 1, 0)
+    btn.ScaleType = Enum.ScaleType.Fit
+    btn.ImageTransparency = 0.3
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
+
+    local grad = Instance.new("UIGradient")
+    grad.Parent = btn
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(1, color2)
+    })
+    grad.Rotation = 45
+
+    return btn
+end
+
+local PrevBtn = createControlButton("PrevBtn", 0, 0.30, Color3.fromRGB(70, 25, 120), Color3.fromRGB(45, 15, 80))
+local ToggleBtn = createControlButton("ToggleBtn", 0.35, 0.30, Color3.fromRGB(150, 0, 220), Color3.fromRGB(90, 0, 160))
+local NextBtn = createControlButton("NextBtn", 0.70, 0.30, Color3.fromRGB(70, 25, 120), Color3.fromRGB(45, 15, 80))
+
+-- ============ VARIABLES GLOBALES ============
+local playAssetUrl = "" 
+local pauseAssetUrl = "" 
+local musicAssetUrl = "" 
+
+-- Playlist
+local playlist = {
+    { name = "Guero Loco", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/GueroLocoTrack.ogg" },
+    { name = "Rafagas Al Viento", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/Victor-Mendivil-R%C3%A1fagas-Al-Viento.ogg" },
+    { name = "Ni Pedo", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/Peso-Pluma-Ni-Pedo.ogg" },
+    { name = "Scarface Wero", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/Scarface-Wero-Makabelico-.ogg" },
+    { name = "Despierta", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/Despierta-Makabelico-.ogg" },
+    { name = "P.V.", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/P.V.ogg" },
+    { name = "Orula", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/Orula.ogg" },
+    { name = "El Del Palenque", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/El-Del-Palenque.ogg" },
+    { name = "Op Nuevo Leon", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/Op%20Nuevo%20Leon.ogg" },
+    { name = "El Mando Ricky", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/El%20Mando%20Ricky%20-%20El%20Makabelico.ogg" },
+    { name = "El Jefe De Nuevo Laredo", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/El%20Makabelico%20-%20El%20Jefe%20De%20Nuevo%20Laredo%20.ogg" },
+    { name = "Cholo", url = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/11.%20Cholo%20-%20Victor%20Mendivil.ogg" },
+    { name = "La Formula", url = "https://raw.githubusercontent.com/zslx018-max/Prueba2/main/La%20Formula%20-%20(Video%20Oficial)%20-%20El%20Rabbanito%20-%20DEL%20Records%202026.ogg" },
+    { name = "Wero v16", url = "https://raw.githubusercontent.com/unrandom0970-debug/Werov16/refs/heads/main/El%20Wero%20v16%20OGG.ogg" },
+    { name = "Soy Ponchito", url = "https://raw.githubusercontent.com/unrandom0970-debug/Pochito-/refs/heads/main/Dinamicos%20Jrs.%20-%20Soy%20Ponchito%20(Video%20Musical).ogg" },
+    { name = "Don Arturo", url = "https://raw.githubusercontent.com/unrandom0970-debug/Donarturogod/refs/heads/main/Don%20Arturo.ogg" },
+    { name = "El Paciente", url = "https://raw.githubusercontent.com/unrandom0970-debug/Elpaciente/refs/heads/main/Alfredo%20Olivas%20-%20El%20Paciente.ogg" }
+}
+
+-- ============ FUNCIONES ============
+local RenderList = function() end
+local activeSound = nil
+local history = {}
+local historyIndex = 0
+local currentIndex = 1
+local progressConn = nil
+
+local function FormatTime(seconds)
+    local mins = math.floor(seconds / 60)
+    local secs = math.floor(seconds % 60)
+    return string.format("%02d:%02d", mins, secs)
+end
+
+-- Cargar iconos
+local iconConfigs = {
+    { btn = PrevBtn, fileName = "iconos/rebobinar.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/rebobinar.png" },
+    { btn = NextBtn, fileName = "iconos/delantero.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/delantero.png" },
+    { btnType = "tocar", fileName = "iconos/tocar.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/tocar.png" },
+    { btnType = "pausa", fileName = "iconos/pausa.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/pausa.png" },
+    { btnType = "musica", fileName = "iconos/musica-alternativa.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/musica-alternativa.png" },
+    { btnType = "busqueda", fileName = "iconos/busqueda.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/busqueda.png" },
+    { btnType = "globo", fileName = "iconos/globo.png", url = "https://raw.githubusercontent.com/zslx018-max/iconos/main/globo.png" }
+}
+
+task.spawn(function()
+    for _, icon in ipairs(iconConfigs) do
+        pcall(function()
+            local needsDownload = true
+            if isfile(icon.fileName) then
+                local content = readfile(icon.fileName)
+                if content and #content > 100 then
+                    needsDownload = false
+                end
+            end
+
+            if needsDownload then
+                local res = game:HttpGet(icon.url)
+                if res and #res > 100 then
+                    writefile(icon.fileName, res)
+                end
+            end
+
+            if isfile(icon.fileName) then
+                local assetUrl = getcustomasset(icon.fileName)
+                if assetUrl then
+                    if icon.btn then
+                        icon.btn.Image = assetUrl
+                        icon.btn.ImageTransparency = 0
+                    elseif icon.btnType == "tocar" then
+                        playAssetUrl = assetUrl
+                        ToggleBtn.Image = playAssetUrl
+                        ToggleBtn.ImageTransparency = 0
+                    elseif icon.btnType == "pausa" then
+                        pauseAssetUrl = assetUrl
+                    elseif icon.btnType == "musica" then
+                        musicAssetUrl = assetUrl
+                        CardIcon.Image = musicAssetUrl
+                        CardIcon.ImageTransparency = 0
+                    elseif icon.btnType == "busqueda" then
+                        SearchIcon.Image = assetUrl
+                        SearchIcon.ImageTransparency = 0
+                    elseif icon.btnType == "globo" then
+                        OnlineIcon.Image = assetUrl
+                        OnlineIcon.ImageTransparency = 0
+                    end
+                end
+            end
+        end)
+    end
+    RenderList(SearchBox.Text)
+end)
+
+local function PlaySong(index, isFromHistory)
+    if index < 1 or index > #playlist then return end
+    
+    local song = playlist[index]
+    local ext = string.match(song.url, "%.([%a%d]+)$") or "ogg"
+    local fileName = "utils music/" .. song.name .. "." .. ext
+    
+    StatusLabel.Text = "Descargando..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+
+    task.spawn(function()
+        local needsDownload = true
+        if isfile(fileName) then
+            local successRead, content = pcall(function() return readfile(fileName) end)
+            if successRead and content and #content > 1024 then
+                needsDownload = false
+            end
+        end
+
+        if needsDownload then
+            local success, res = pcall(function()
+                return game:HttpGet(song.url)
+            end)
+            if success and res and #res > 1024 then
+                pcall(function() writefile(fileName, res) end)
+            end
+        end
+
+        if isfile(fileName) then
+            if activeSound then
+                activeSound:Stop()
+                activeSound:Destroy()
+            end
+            if progressConn then
+                progressConn:Disconnect()
+            end
+
+            local soundSuccess, customAssetUrl = pcall(function()
+                return getcustomasset(fileName)
+            end)
+
+            if soundSuccess and customAssetUrl then
+                local sound = Instance.new("Sound")
+                sound.Name = "NexusPlayingTrack"
+                sound.SoundId = customAssetUrl
+                sound.Volume = 3
+                sound.Parent = SoundService
+                sound:Play()
+                activeSound = sound
+
+                if pauseAssetUrl ~= "" then
+                    ToggleBtn.Image = pauseAssetUrl
+                end
+
+                CurrentTrackLabel.Text = song.name
+                currentIndex = index
+
+                if not isFromHistory then
+                    for i = #history, historyIndex + 1, -1 do
+                        table.remove(history, i)
+                    end
+                    table.insert(history, index)
+                    historyIndex = #history
+                end
+
+                progressConn = game:GetService("RunService").RenderStepped:Connect(function()
+                    if sound and sound.IsPlaying and sound.TimeLength > 0 then
+                        local percent = math.clamp(sound.TimePosition / sound.TimeLength, 0, 1)
+                        ProgressBar.Size = UDim2.new(percent, 0, 1, 0)
+                        TimeLabel.Text = FormatTime(sound.TimePosition) .. " / " .. FormatTime(sound.TimeLength)
+                        StatusLabel.Text = "▶ Reproduciendo"
+                        StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 130)
+                    end
+                end)
+
+                sound.Ended:Connect(function()
+                    if playAssetUrl ~= "" then
+                        ToggleBtn.Image = playAssetUrl
+                    end
+                    if index < #playlist then
+                        PlaySong(index + 1)
+                    end
+                end)
+            else
+                StatusLabel.Text = "❌ Error de audio"
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            end
+        end
+    end)
+end
+
+RenderList = function(filterText)
+    for _, child in ipairs(ScrollingList:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+
+    local count = 0
+    for i, song in ipairs(playlist) do
+        if filterText == "" or string.find(string.lower(song.name), string.lower(filterText)) then
+            count = count + 1
+            
+            local itemContainer = Instance.new("Frame")
+            itemContainer.Parent = ScrollingList
+            itemContainer.BackgroundColor3 = Color3.fromRGB(22, 20, 35)
+            itemContainer.BorderSizePixel = 0
+            itemContainer.Size = UDim2.new(1, 0, 0, 36)
+
+            local itemCorner = Instance.new("UICorner")
+            itemCorner.CornerRadius = UDim.new(0, 6)
+            itemCorner.Parent = itemContainer
+
+            local itemBtn = Instance.new("TextButton")
+            itemBtn.Parent = itemContainer
+            itemBtn.BackgroundTransparency = 1
+            itemBtn.BorderSizePixel = 0
+            itemBtn.Size = UDim2.new(1, 0, 1, 0)
+            itemBtn.Font = Enum.Font.GothamMedium
+            itemBtn.Text = ""
+            itemBtn.TextColor3 = Color3.fromRGB(220, 210, 255)
+            itemBtn.TextSize = 12
+            itemBtn.TextXAlignment = Enum.TextXAlignment.Left
+
+            local itemIcon = Instance.new("ImageLabel")
+            itemIcon.Parent = itemContainer
+            itemIcon.BackgroundTransparency = 1
+            itemIcon.Position = UDim2.new(0, 10, 0.5, -7)
+            itemIcon.Size = UDim2.new(0, 14, 0, 14)
+            itemIcon.ScaleType = Enum.ScaleType.Fit
+            itemIcon.Image = musicAssetUrl
+            itemIcon.ZIndex = 2
+
+            local itemText = Instance.new("TextLabel")
+            itemText.Parent = itemContainer
+            itemText.BackgroundTransparency = 1
+            itemText.Position = UDim2.new(0, 30, 0, 0)
+            itemText.Size = UDim2.new(1, -40, 1, 0)
+            itemText.Font = Enum.Font.GothamMedium
+            itemText.Text = song.name
+            itemText.TextColor3 = Color3.fromRGB(220, 210, 255)
+            itemText.TextSize = 12
+            itemText.TextXAlignment = Enum.TextXAlignment.Left
+
+            itemBtn.MouseButton1Click:Connect(function()
+                PlaySong(i)
+            end)
+        end
+    end
+    ScrollingList.CanvasSize = UDim2.new(0, 0, 0, count * 40)
+end
+
+-- ============ EVENTOS ============
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    RenderList(SearchBox.Text)
+end)
+
+PrevBtn.MouseButton1Click:Connect(function()
+    if historyIndex > 1 then
+        historyIndex = historyIndex - 1
+        PlaySong(history[historyIndex], true)
+    end
+end)
+
+NextBtn.MouseButton1Click:Connect(function()
+    if historyIndex < #history then
+        historyIndex = historyIndex + 1
+        PlaySong(history[historyIndex], true)
+    else
+        local nextIdx = currentIndex + 1
+        if nextIdx <= #playlist then
+            PlaySong(nextIdx)
+        end
+    end
+end)
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    if activeSound then
+        if activeSound.IsPlaying then
+            activeSound:Pause()
+            StatusLabel.Text = "⏸ En pausa"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+            if playAssetUrl ~= "" then
+                ToggleBtn.Image = playAssetUrl
+            end
+        else
+            activeSound:Resume()
+            StatusLabel.Text = "▶ Reproduciendo"
+            StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 130)
+            if pauseAssetUrl ~= "" then
+                ToggleBtn.Image = pauseAssetUrl
+            end
+        end
+    else
+        PlaySong(1)
+    end
+end)
+
+-- Minimizar (ahora con escala automática)
+local minimized = false
+MinBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        MinBtn.Text = "+"
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 400, 0, 60)}):Play()
+        SearchContainer.Visible = false
+        ListContainer.Visible = false
+        PlayerCard.Visible = false
+        OnlineContainer.Visible = false
+        ButtonContainer.Visible = false
+    else
+        MinBtn.Text = "−"
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 400, 0, 550)}):Play()
+        SearchContainer.Visible = true
+        ListContainer.Visible = true
+        PlayerCard.Visible = true
+        OnlineContainer.Visible = true
+        ButtonContainer.Visible = true
+    end
+end)
+
+-- ============ SISTEMA ONLINE ============
+local function cleanup()
+    if httpRequest then
+        pcall(function()
+            httpRequest({
+                Url = DATABASE_URL .. "online_users/" .. sessionKey .. ".json",
+                Method = "DELETE"
+            })
+        end)
+    end
+end
+
+task.spawn(function()
+    task.wait(1)
+    while ScreenGui.Parent do
+        pcall(function()
+            local putUrl = DATABASE_URL .. "online_users/" .. sessionKey .. ".json"
+            
+            if httpRequest then
+                httpRequest({
+                    Url = putUrl,
+                    Method = "PUT",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode({
+                        time = os.time(), 
+                        name = LocalPlayer.Name, 
+                        userId = userId
+                    })
+                })
+            end
+
+            local getUrl = DATABASE_URL .. "online_users.json"
+            local response = game:HttpGet(getUrl)
+            if response and response ~= "null" then
+                local data = HttpService:JSONDecode(response)
+                local activeCount = 0
+                local currentTime = os.time()
+
+                if type(data) == "table" then
+                    for key, info in pairs(data) do
+                        if type(info) == "table" and info.time and (currentTime - info.time < 15) then
+                            activeCount = activeCount + 1
+                        else
+                            if httpRequest then
+                                httpRequest({
+                                    Url = DATABASE_URL .. "online_users/" .. key .. ".json",
+                                    Method = "DELETE"
+                                })
+                            end
+                        end
+                    end
+                end
+
+                OnlineLabel.Text = "Usuarios online: " .. tostring(math.max(1, activeCount))
+            else
+                OnlineLabel.Text = "Usuarios online: 1"
+            end
+        end)
+        task.wait(5)
+    end
+    cleanup()
+end)
+
+ScreenGui.AncestryChanged:Connect(function()
+    if not ScreenGui.Parent then
+        cleanup()
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        cleanup()
+    end
+end)
+
+-- Iniciar
+RenderList("")
