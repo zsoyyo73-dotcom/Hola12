@@ -1,4 +1,3 @@
---// Z NEXUS - SCRIPT COMPLETO CON EXECUTE KILL INTEGRADO //--
 local Players = game:GetService("Players")
 local TextService = game:GetService("TextService")
 local CoreGui = game:GetService("CoreGui")
@@ -340,7 +339,6 @@ _G.Z_GunMods_Active = true
 _G.Z_GunMods_InfAmmo = false
 _G.Z_GunMods_NoRecoil = false
 
---// 6. LÓGICA DE DISPARO CORREGIDA //--
 local function ExecuteKill()
     local target = getgenv().CurrentTarget
     if not target then return end
@@ -352,19 +350,16 @@ local function ExecuteKill()
     local gun = char:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun"))
     if not gun or not myRoot then return end
 
-    -- Equipa automáticamente si no la tienes en mano
     if gun.Parent ~= char then 
         char.Humanoid:EquipTool(gun)
         task.wait(0.05)
     end
 
-    -- Cálculo de predicción
     local rawPing = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString():split(" ")[1]
     local pingValue = tonumber(rawPing) or 50
     local Prediction = (pingValue / 2500) + 0.175 
     local TargetPos = target.Position + (target.AssemblyLinearVelocity * Prediction)
     
-    -- CORRECCIÓN: El origen debe salir de tu posición real para que el servidor no rechace el disparo
     local GunOrigin = myRoot.Position + Vector3.new(0, 2, 0)
     local args = { CFrame.new(GunOrigin), CFrame.new(TargetPos) }
     
@@ -467,7 +462,6 @@ task.spawn(function()
     end
 end)
 
--- // 👁️ LÓGICA ESP 2X (DISTANCIA CORREGIDA) // --
 _G.Z_ESP_Master = false
 _G.Z_ESP_Boxes = true
 _G.Z_ESP_HealthBar = true
@@ -546,7 +540,6 @@ task.spawn(function()
                 continue
             end
 
-            -- Cálculo basado en CFrame del HRP para evitar deformación por animaciones a distancia
             local topWorld = (hrp.CFrame * CFrame.new(0, 3, 0)).Position
             local botWorld = (hrp.CFrame * CFrame.new(0, -3.5, 0)).Position
 
@@ -554,9 +547,8 @@ task.spawn(function()
             local botPos = Camera:WorldToViewportPoint(botWorld)
 
             if onScreen then
-                -- Redondeo de coordenadas para evitar subpíxeles borrosos u holgados
                 local rawHeight = math.abs(topPos.Y - botPos.Y)
-                local height = math.round(math.max(rawHeight, 6)) -- Límite mínimo de altura
+                local height = math.round(math.max(rawHeight, 6))
                 local width = math.round(height / 1.8)
                 
                 local posX = math.round(topPos.X - (width / 2))
@@ -590,12 +582,11 @@ task.spawn(function()
     end)
 end)
 
--- // ⚙️ VARIABLES GLOBALES (TRACERS PRO + TEAM CHECK) // --
 _G.Z_Tracers_Enabled = false
 _G.Z_Tracer_TeamCheck = false 
 _G.Z_Tracer_Origin = "Abajo"
 _G.Z_Tracer_Color = Color3.fromRGB(0, 255, 0)
-_G.Z_Tracer_Width = 1 -- Mínimo 1 para evitar que desaparezca
+_G.Z_Tracer_Width = 1
 _G.Z_Tracer_Transparency = 0.4
 
 task.spawn(function()
@@ -653,7 +644,6 @@ task.spawn(function()
             local head = char and char:FindFirstChild("Head")
             local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-            -- Validación Anti-Bot idéntica a la del ESP 2X
             if not _G.Z_Tracers_Enabled or not head or not hum or hum.Health <= 0 or not IsRealPlayer(player) then
                 line.Visible = false
                 continue
@@ -711,7 +701,6 @@ task.spawn(function()
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
         if hrp and hum and hum.Health > 0 then
-            -- Frena la velocidad vertical al caer para evitar que el juego registre impacto de daño
             if hrp.AssemblyLinearVelocity.Y < -30 then
                 hrp.AssemblyLinearVelocity = Vector3.new(
                     hrp.AssemblyLinearVelocity.X,
@@ -851,16 +840,12 @@ task.spawn(function()
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
         if _G.Z_Spin_Enabled and hrp and hum and hum.Health > 0 then
-            -- Desactivamos el auto-rotado para que la cámara y los disparos mantengan su dirección
             hum.AutoRotate = false
 
-            -- Velocidad de giro fija determinada (45° por frame)
             spinAngle = (spinAngle + 45) % 360
 
-            -- Giramos la CFrame sobre el eje Y respetando la posición actual
             hrp.CFrame = CFrame.new(hrp.CFrame.Position) * CFrame.Angles(0, math.rad(spinAngle), 0)
         else
-            -- Al apagar el Spinbot, devolvemos el control de rotación normal al personaje
             if hum and not hum.AutoRotate then
                 hum.AutoRotate = true
             end
@@ -1539,7 +1524,6 @@ UniversalTab:Toggle({
     end
 })
 
--- // 🎯 AIMBOT CAMLOCK // --
 _G.Aimbot_Enabled = false
 _G.Aimbot_Smoothness = 0.2
 _G.Aimbot_FOV = 150
@@ -1797,7 +1781,6 @@ CombatTab:Toggle({
     end
 })
 
---// SILENT AIM CORREGIDO (CON WALLBANG Y RAYCAST FIABLE) //--
 _G.Silent_Enabled = false
 _G.Silent_Range = 150
 _G.Silent_FOV = 120
