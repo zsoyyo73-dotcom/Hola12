@@ -1,18 +1,34 @@
--- ============================================================
--- VERIFICACIÓN DE SEGURIDAD (KEY SYSTEM MANDATORIO)
--- Si el script se ejecuta directamente desde la URL raw sin pasar
--- por la UI del Key System, kikea al usuario y aborta.
--- ============================================================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+-- [Parte final del evento VerifyBtn.MouseButton1Click]
+        
+        VerifyBtn.Text = "  ¡Acceso Concedido!"
+        TweenService:Create(VerifyBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(34, 197, 94)}):Play()
+        updateStatus("¡Key vinculada y verificada con éxito!", Color3.fromRGB(34, 197, 94))
+        
+        -- Sesión compatible con Z NEXUS PROTECTION
+        getgenv().ZNexusSession = {
+            Authenticated = true,
+            Key = userKey,
+            HWID = getHwidFunc,
+            Timestamp = os.time(),
+            Token = tostring(#userKey * 1337) -- Firma requerida por el Main Script
+        }
 
-local session = rawget(getgenv(), "ZNexusSession")
-if not session or type(session) ~= "table" or not session.Authenticated or not session.Key or session.Key == "" then
-    if LocalPlayer then
-        LocalPlayer:Kick("\n\n[Z NEXUS PROTECTION]\nAcceso Denegado: Debes verificar tu Key en el Key System antes de ejecutar este script.\n")
-    end
-    return
-end
+        task.wait(1)
+        
+        local tweenOut = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+        tweenOut:Play()
+        tweenOut.Completed:Wait()
+        ScreenGui:Destroy()
+
+        -- Carga del Script Principal
+        if SCRIPT_LOADER_URL and SCRIPT_LOADER_URL ~= "" then
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(SCRIPT_LOADER_URL))()
+            end)
+            if not success then
+                warn("[Z NEXUS ERROR] Fallo al cargar el Main Script:", err)
+            end
+        end
 
 -- ============================================================
 -- SCRIPT PRINCIPAL: Z NEXUS HUB
