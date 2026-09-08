@@ -1,38 +1,20 @@
--- [Parte final del evento VerifyBtn.MouseButton1Click]
-        
-        VerifyBtn.Text = "  ¡Acceso Concedido!"
-        TweenService:Create(VerifyBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(34, 197, 94)}):Play()
-        updateStatus("¡Key vinculada y verificada con éxito!", Color3.fromRGB(34, 197, 94))
-        
-        -- Sesión compatible con Z NEXUS PROTECTION
-        getgenv().ZNexusSession = {
-            Authenticated = true,
-            Key = userKey,
-            HWID = getHwidFunc,
-            Timestamp = os.time(),
-            Token = tostring(#userKey * 1337) -- Firma requerida por el Main Script
-        }
+local session = getgenv().ZNexusSession
 
-        task.wait(1)
-        
-        local tweenOut = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-        tweenOut:Play()
-        tweenOut.Completed:Wait()
-        ScreenGui:Destroy()
+-- 1. Validar que la sesión exista y esté autenticada
+if not session or type(session) ~= "table" or not session.Authenticated then
+    game:GetService("Players").LocalPlayer:Kick("[Z NEXUS] Acceso Denegado: Ejecuta primero el Key System.")
+    return
+end
 
-        -- Carga del Script Principal
-        if SCRIPT_LOADER_URL and SCRIPT_LOADER_URL ~= "" then
-            local success, err = pcall(function()
-                loadstring(game:HttpGet(SCRIPT_LOADER_URL))()
-            end)
-            if not success then
-                warn("[Z NEXUS ERROR] Fallo al cargar el Main Script:", err)
-            end
-        end
+-- 2. Validar la firma del Token (Evita bypasses)
+local expectedToken = tostring(#(session.Key or "") * 1337)
+if session.Token ~= expectedToken then
+    game:GetService("Players").LocalPlayer:Kick("[Z NEXUS] Error de Seguridad: Token inválido.")
+    return
+end
 
--- ============================================================
--- SCRIPT PRINCIPAL: Z NEXUS HUB
--- ============================================================
+print("[Z NEXUS] ¡Sesión verificada correctamente! Cargando script...")
+
 local TextService = game:GetService("TextService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
