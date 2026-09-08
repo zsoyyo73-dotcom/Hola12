@@ -1910,7 +1910,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed or not _G.Silent_Enabled then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         IsShooting = true
-        if WeaponEquipped me
+        if WeaponEquipped then
             OriginalCameraCFrame = Camera.CFrame
             CameraLocked = true
         end
