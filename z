@@ -305,13 +305,6 @@ local Window = WindUI:CreateWindow({
         ButtonsType = "", 
     },
 
-    KeySystem = {
-        Key = { "wnexus", "" },
-        Note = "Ingresa tu Key para acceder. Si no la tienes unete al discord.",
-        URL = "https://discord.gg/xjbhK2hdT",
-        SaveKey = false,
-    },
-
     OpenButton = {
         Title = "Z Nexus",
         CornerRadius = UDim.new(4, 7),
