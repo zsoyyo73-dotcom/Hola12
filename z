@@ -1,97 +1,89 @@
--- ========================================================
--- Z NEXUS - MAIN LOADER & SCRIPT PRINCIPAL
--- ========================================================
-
+-- ============================================================
+-- VERIFICACIÓN DE SEGURIDAD (KEY SYSTEM MANDATORIO)
+-- Si el script se ejecuta directamente desde la URL raw sin pasar
+-- por la UI del Key System, kikea al usuario y aborta.
+-- ============================================================
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local session = rawget(getgenv(), "ZNexusSession")
+if not session or type(session) ~= "table" or not session.Authenticated or not session.Key or session.Key == "" then
+    if LocalPlayer then
+        LocalPlayer:Kick("\n\n[Z NEXUS PROTECTION]\nAcceso Denegado: Debes verificar tu Key en el Key System antes de ejecutar este script.\n")
+    end
+    return
+end
+
+-- ============================================================
+-- SCRIPT PRINCIPAL: Z NEXUS HUB
+-- ============================================================
 local TextService = game:GetService("TextService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local SoundService = game:GetService("SoundService")
-local Lighting = game:GetService("Lighting")
+local Camera = workspace.CurrentCamera
 local Stats = game:GetService("Stats")
 
-local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local Camera = workspace.CurrentCamera
-
--- --------------------------------------------------------
--- VERIFICACIÓN DE SESIÓN Y SEGURIDAD
--- --------------------------------------------------------
-local VALID_KEYS = {
-    ["wnexus"] = true,
-    ["znexus-vip"] = true
-}
-
-local function ExpelUser(reason)
-    LocalPlayer:Kick("\n[Z NEXUS SECURITY]\n" .. (reason or "Sesión no válida o intento de bypass detectado."))
-    task.wait(0.5)
-    while true do task.wait(1) end
-end
-
--- Asigna la key global si fue definida antes de ejecutar o durante la carga
-local CurrentSessionKey = _G.Z_Nexus_Key or getgenv().Z_Nexus_Key or "wnexus"
-
-if not CurrentSessionKey or not VALID_KEYS[CurrentSessionKey] then
-    ExpelUser("Key o token de sesión inválido. Únete al Discord para obtener acceso.")
-end
-
--- --------------------------------------------------------
--- RECURSOS DE AUDIO & MÚSICA
--- --------------------------------------------------------
 local V2_Active = true
+local SoundService = game:GetService("SoundService")
+
 local fileActivated = "OpcionActivada1.mp3"
 local fileDeactivated = "OpcionDesactivada1.mp3"
+
 local urlActivated = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/lv_0_20260816050935_mixed.mp3"
 local urlDeactivated = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/lv_0_20260816044033_original_mixed.mp3"
 
 task.spawn(function()
-    if isfile and writefile and game.HttpGet then
-        if not isfile(fileActivated) then
-            pcall(function() writefile(fileActivated, game:HttpGet(urlActivated)) end)
-        end
-        if not isfile(fileDeactivated) then
-            pcall(function() writefile(fileDeactivated, game:HttpGet(urlDeactivated)) end)
-        end
+    if not isfile(fileActivated) then
+        pcall(function() writefile(fileActivated, game:HttpGet(urlActivated)) end)
+    end
+    if not isfile(fileDeactivated) then
+        pcall(function() writefile(fileDeactivated, game:HttpGet(urlDeactivated)) end)
     end
 end)
 
 _G.PlayOptionActivated = function()
     task.spawn(function()
-        if isfile and not isfile(fileActivated) then
+        if not isfile(fileActivated) then
             pcall(function() writefile(fileActivated, game:HttpGet(urlActivated)) end)
         end
-        if isfile and isfile(fileActivated) and getcustomasset then
+
+        if isfile(fileActivated) then
             local sound = Instance.new("Sound")
             sound.Name = "VoiceActivated"
             sound.SoundId = getcustomasset(fileActivated)
             sound.Volume = 2
             sound.Parent = SoundService
             sound:Play()
-            sound.Ended:Connect(function() sound:Destroy() end)
+
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
         end
     end)
 end
 
 _G.PlayOptionDeactivated = function()
     task.spawn(function()
-        if isfile and not isfile(fileDeactivated) then
+        if not isfile(fileDeactivated) then
             pcall(function() writefile(fileDeactivated, game:HttpGet(urlDeactivated)) end)
         end
-        if isfile and isfile(fileDeactivated) and getcustomasset then
+
+        if isfile(fileDeactivated) then
             local sound = Instance.new("Sound")
             sound.Name = "VoiceDeactivated"
             sound.SoundId = getcustomasset(fileDeactivated)
             sound.Volume = 2
             sound.Parent = SoundService
             sound:Play()
-            sound.Ended:Connect(function() sound:Destroy() end)
+
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
         end
     end)
 end
 
--- --------------------------------------------------------
--- FUNCIONES DE JUGADOR REAL
--- --------------------------------------------------------
 local function IsRealPlayer(player)
     if not player or not player:IsA("Player") or player == LocalPlayer or player.UserId <= 0 then return false end
     
@@ -104,13 +96,14 @@ local function IsRealPlayer(player)
     
     if not hum or hum.Health <= 0 or not head or not root then return false end
     
-    for _, part in ipairs(char:GetDescendants()) do
+    for _, part in pairs(char:GetDescendants()) do
         if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
             if part.Transparency + part.LocalTransparencyModifier < 0.9 then
                 return true
             end
         end
     end
+    
     return false
 end
 
@@ -118,7 +111,7 @@ _G.IsRealPlayer = IsRealPlayer
 
 _G.GetRealPlayers = function()
     local realPlayers = {}
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _, player in pairs(Players:GetPlayers()) do
         if IsRealPlayer(player) then
             table.insert(realPlayers, player)
         end
@@ -126,9 +119,6 @@ _G.GetRealPlayers = function()
     return realPlayers
 end
 
--- --------------------------------------------------------
--- ARRAYLIST HUD SYSTEM
--- --------------------------------------------------------
 if CoreGui:FindFirstChild("Z_ArrayList_System") then 
     CoreGui.Z_ArrayList_System:Destroy() 
 end
@@ -138,7 +128,8 @@ arrayGui.Name = "Z_ArrayList_System"
 arrayGui.ResetOnSpawn = false
 arrayGui.IgnoreGuiInset = true 
 
-if not pcall(function() arrayGui.Parent = CoreGui end) then
+local success = pcall(function() arrayGui.Parent = CoreGui end)
+if not success then
     arrayGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
@@ -170,15 +161,14 @@ local function GetTextWidth(text, font, size)
 end
 
 local function GetActiveArrayListColor(index)
-    local mode = _G.Z_ArrayList_ColorMode
-    if mode == "RGB" then
+    if _G.Z_ArrayList_ColorMode == "RGB" then
         local hue = ((tick() * 0.35) + ((index or 1) * 0.06)) % 1
         return Color3.fromHSV(hue, 0.8, 1)
-    elseif mode == "Morado" then
+    elseif _G.Z_ArrayList_ColorMode == "Morado" then
         return Color3.fromRGB(170, 0, 255)
-    elseif mode == "Azul" then
+    elseif _G.Z_ArrayList_ColorMode == "Azul" then
         return Color3.fromRGB(0, 150, 255)
-    elseif mode == "Personalizado" then
+    elseif _G.Z_ArrayList_ColorMode == "Personalizado" then
         return _G.Z_ArrayList_CustomColor
     else
         return Color3.fromRGB(0, 255, 128)
@@ -193,7 +183,7 @@ end
 local function RenderArrayList()
     ActiveRenderItems = {}
     
-    for _, child in ipairs(arrayContainer:GetChildren()) do
+    for _, child in pairs(arrayContainer:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
 
@@ -291,9 +281,6 @@ end
 
 _G.RefreshArrayListUI = RenderArrayList
 
--- --------------------------------------------------------
--- WIND UI INTERFACE SETUP
--- --------------------------------------------------------
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 WindUI:SetTheme("Dark")
 
@@ -319,7 +306,7 @@ local Window = WindUI:CreateWindow({
     },
 
     KeySystem = {
-        Key = { "wnexus", "znexus-vip" },
+        Key = { "wnexus", "" },
         Note = "Ingresa tu Key para acceder. Si no la tienes unete al discord.",
         URL = "https://discord.gg/xjbhK2hdT",
         SaveKey = false,
@@ -347,7 +334,7 @@ local Window = WindUI:CreateWindow({
         Title = "Z",
         Subtitle = "Owner & Developer",
         Icon = "rbxthumb://type=AvatarHeadShot&id=5569179741&w=150&h=150",
-        Callback = function() end,
+        Callback = function() print("") end,
     },
 })
 
@@ -395,6 +382,7 @@ local function ExecuteKill()
     
     if gun:FindFirstChild("Shoot") then 
         gun.Shoot:FireServer(unpack(args))
+        
         if V2_Active then
             task.wait(0.05)
             gun.Parent = backpack 
@@ -437,9 +425,9 @@ local function HackGun(v)
 end
 
 _G.Z_ForceGunScan = function()
-    if not _G.Z_GunMods_Active or not getgc then return end
+    if not _G.Z_GunMods_Active then return end
     pcall(function()
-        for _, v in ipairs(getgc(true)) do
+        for _, v in pairs(getgc(true)) do
             if type(v) == "table" and rawget(v, "gunName") then
                 HackGun(v)
             end
@@ -475,7 +463,7 @@ task.spawn(function()
                 local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
                 if tool then
                     _G.Z_ForceGunScan()
-                    for _, obj in ipairs(tool:GetDescendants()) do
+                    for _, obj in pairs(tool:GetDescendants()) do
                         if obj:IsA("IntValue") or obj:IsA("NumberValue") then
                             local n = obj.Name:lower()
                             if n:find("ammo") or n:find("mag") or n:find("bullet") then
@@ -491,9 +479,6 @@ task.spawn(function()
     end
 end)
 
--- --------------------------------------------------------
--- VISUALS & ESP SYSTEM
--- --------------------------------------------------------
 _G.Z_ESP_Master = false
 _G.Z_ESP_Boxes = true
 _G.Z_ESP_HealthBar = true
@@ -501,6 +486,9 @@ _G.Z_ESP_TeamCheck = false
 _G.Z_ESP_Color = Color3.fromRGB(0, 255, 0)
 
 task.spawn(function()
+    local Camera = workspace.CurrentCamera
+    local LP = Players.LocalPlayer
+
     if CoreGui:FindFirstChild("Z_ESP_LITE") then CoreGui.Z_ESP_LITE:Destroy() end
 
     local ESPGui = Instance.new("ScreenGui", CoreGui)
@@ -547,8 +535,8 @@ task.spawn(function()
         end
     end
 
-    for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESP(p) end end
-    Players.PlayerAdded:Connect(function(p) if p ~= LocalPlayer then CreateESP(p) end end)
+    for _, p in pairs(Players:GetPlayers()) do if p ~= LP then CreateESP(p) end end
+    Players.PlayerAdded:Connect(function(p) if p ~= LP then CreateESP(p) end end)
     Players.PlayerRemoving:Connect(RemoveESP)
 
     RunService.RenderStepped:Connect(function()
@@ -563,7 +551,7 @@ task.spawn(function()
                 continue
             end
 
-            if _G.Z_ESP_TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+            if _G.Z_ESP_TeamCheck and player.Team and LP.Team and player.Team == LP.Team then
                 data.Box.Visible = false
                 data.Bg.Visible = false
                 continue
@@ -611,9 +599,6 @@ task.spawn(function()
     end)
 end)
 
--- --------------------------------------------------------
--- TRACERS SYSTEM
--- --------------------------------------------------------
 _G.Z_Tracers_Enabled = false
 _G.Z_Tracer_TeamCheck = false 
 _G.Z_Tracer_Origin = "Abajo"
@@ -622,6 +607,9 @@ _G.Z_Tracer_Width = 1
 _G.Z_Tracer_Transparency = 0.4
 
 task.spawn(function()
+    local Camera = workspace.CurrentCamera
+    local LP = Players.LocalPlayer
+
     if CoreGui:FindFirstChild("Z_TRACERS_LITE") then
         CoreGui.Z_TRACERS_LITE:Destroy()
     end
@@ -652,8 +640,8 @@ task.spawn(function()
         end
     end
 
-    for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateTracer(p) end end
-    Players.PlayerAdded:Connect(function(p) if p ~= LocalPlayer then CreateTracer(p) end end)
+    for _, p in pairs(Players:GetPlayers()) do if p ~= LP then CreateTracer(p) end end
+    Players.PlayerAdded:Connect(function(p) if p ~= LP then CreateTracer(p) end end)
     Players.PlayerRemoving:Connect(RemoveTracer)
 
     RunService.RenderStepped:Connect(function()
@@ -678,7 +666,7 @@ task.spawn(function()
                 continue
             end
 
-            if _G.Z_Tracer_TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+            if _G.Z_Tracer_TeamCheck and player.Team and LP.Team and player.Team == LP.Team then
                 line.Visible = false
                 continue
             end
@@ -715,16 +703,17 @@ task.spawn(function()
     end)
 end)
 
--- --------------------------------------------------------
--- MOVEMENT & EXPLOIT LOOPS
--- --------------------------------------------------------
 _G.Z_NoFall_Enabled = false
 
 task.spawn(function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local LP = Players.LocalPlayer
+
     RunService.Heartbeat:Connect(function()
         if not _G.Z_NoFall_Enabled then return end
 
-        local char = LocalPlayer.Character
+        local char = LP.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
@@ -742,17 +731,20 @@ end)
 
 _G.Zinvis = false
 
-RunService.Heartbeat:Connect(function()
-    local char = LocalPlayer.Character
+game:GetService("RunService").Heartbeat:Connect(function()
+    local lp = game.Players.LocalPlayer
+    local char = lp.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChild("Humanoid")
 
     if _G.Zinvis and root and hum and hum.Health > 0 then
         local oldPos = root.CFrame
+
         root.CFrame = oldPos * CFrame.new(0, 999, 0)
+        
         hum.CameraOffset = Vector3.new(0, -999, 0)
         
-        RunService.RenderStepped:Wait()
+        game:GetService("RunService").RenderStepped:Wait()
         root.CFrame = oldPos
     elseif hum then
         hum.CameraOffset = Vector3.new(0, 0, 0)
@@ -760,6 +752,11 @@ RunService.Heartbeat:Connect(function()
 end)
 
 task.spawn(function()
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local Camera = workspace.CurrentCamera
+    local LP = Players.LocalPlayer
+
     local RealCFrame = nil
     local CamAnchor = nil
     local WasDesyncing = false
@@ -778,7 +775,7 @@ task.spawn(function()
     end
 
     RunService.RenderStepped:Connect(function()
-        local Char = LocalPlayer.Character
+        local Char = LP.Character
         local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
         local Hum = Char and Char:FindFirstChild("Humanoid")
 
@@ -792,18 +789,20 @@ task.spawn(function()
             local camDist = (Camera.CFrame.Position - anchor.Position).Magnitude
             local isFirstPerson = camDist < 1.5
 
-            for _, part in ipairs(Char:GetDescendants()) do
+            for _, part in pairs(Char:GetDescendants()) do
                 if part:IsA("BasePart") or part:IsA("Decal") then
                     if part.Name ~= "HumanoidRootPart" then
                         part.LocalTransparencyModifier = isFirstPerson and 1 or 0
                     end
                 end
             end
+
         else
             if Hum and Camera.CameraSubject ~= Hum then
                 Camera.CameraSubject = Hum
+                
                 if Char then
-                    for _, part in ipairs(Char:GetDescendants()) do
+                    for _, part in pairs(Char:GetDescendants()) do
                         if part:IsA("BasePart") or part:IsA("Decal") then
                             part.LocalTransparencyModifier = 0
                         end
@@ -818,23 +817,26 @@ task.spawn(function()
     end)
 
     RunService.Heartbeat:Connect(function()
-        local Char = LocalPlayer.Character
+        local Char = LP.Character
         local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
         
         if _G.DesyncEnabled and HRP then
             WasDesyncing = true
+            
             RealCFrame = HRP.CFrame
             
             local rx = math.random(-_G.DesyncPower, _G.DesyncPower) / 10 
             local rz = math.random(-_G.DesyncPower, _G.DesyncPower) / 10 
             
             HRP.CFrame = RealCFrame * CFrame.new(rx, 0, rz) * CFrame.Angles(0, math.rad(math.random(0, 360)), 0)
+            
         elseif WasDesyncing then
             if HRP and RealCFrame then
                 HRP.CFrame = RealCFrame
                 HRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             end
+            
             RealCFrame = nil
             WasDesyncing = false
         end
@@ -844,16 +846,21 @@ end)
 _G.Z_Spin_Enabled = false
 
 task.spawn(function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local LP = Players.LocalPlayer
     local spinAngle = 0
 
     RunService.Heartbeat:Connect(function()
-        local char = LocalPlayer.Character
+        local char = LP.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
         if _G.Z_Spin_Enabled and hrp and hum and hum.Health > 0 then
             hum.AutoRotate = false
+
             spinAngle = (spinAngle + 45) % 360
+
             hrp.CFrame = CFrame.new(hrp.CFrame.Position) * CFrame.Angles(0, math.rad(spinAngle), 0)
         else
             if hum and not hum.AutoRotate then
@@ -869,25 +876,26 @@ _G.Z_Hitbox_Mode = "Head"
 _G.Z_Team_Check = true
 _G.Z_Force_Reset = false
 
-local s_p = "Size"
-local h_p = "Head"
-local t_p = "Torso"
-local tr_p = "Transparency"
-local d_p = "ZData99"
+local s_p = "Si".."ze"
+local h_p = "He".."ad"
+local t_p = "Tor".."so"
+local tr_p = "Trans".."parency"
+local d_p = "Z".."Data".."99"
 
 RunService.Heartbeat:Connect(function()
     if not _G.Z_Hitbox_Active and not _G.Z_Force_Reset then return end
 
+    local lp = Players.LocalPlayer
     local val_size = _G.Z_Hitbox_Size or 20
     local v_size = Vector3.new(val_size, val_size, val_size)
 
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character then
             local char = p.Character
-            local is_team = _G.Z_Team_Check and LocalPlayer.Team and p.Team == LocalPlayer.Team
 
+            local is_team = _G.Z_Team_Check and lp.Team and p.Team == lp.Team
             if not _G.Z_Hitbox_Active or _G.Z_Force_Reset or is_team then
-                for _, part in ipairs(char:GetChildren()) do
+                for _, part in pairs(char:GetChildren()) do
                     local backup = part:FindFirstChild(d_p)
                     if backup then
                         part[s_p] = backup.Value
@@ -909,13 +917,13 @@ RunService.Heartbeat:Connect(function()
                 if torso then table.insert(targets, torso) end
             elseif _G.Z_Hitbox_Mode == "Huesos" then
                 local bones = {"Left Arm", "Right Arm", "Left Leg", "Right Leg", "LeftUpperArm", "RightUpperArm", "LeftUpperLeg", "RightUpperLeg"}
-                for _, b in ipairs(bones) do 
+                for _, b in pairs(bones) do 
                     local bp = char:FindFirstChild(b)
                     if bp then table.insert(targets, bp) end
                 end
             end
 
-            for _, obj in ipairs(targets) do
+            for _, obj in pairs(targets) do
                 if obj and obj:IsA("BasePart") then
                     if obj[s_p] ~= v_size then
                         if not obj:FindFirstChild(d_p) then
@@ -941,9 +949,6 @@ RunService.Heartbeat:Connect(function()
     _G.Z_Force_Reset = false 
 end)
 
--- --------------------------------------------------------
--- UI TABS & CONTROLS
--- --------------------------------------------------------
 InfoTab:Section({ Title = "Estado & Actualizaciones" })
 InfoTab:Paragraph({
     Title = "Información del Hub",
@@ -989,6 +994,7 @@ CombatTab:Toggle({
         end
 
         _G.ExecuteKillActive = Value
+        
         if _G.UpdateArrayList then
             _G.UpdateArrayList("ExecuteKill", Value, "")
         end
@@ -1008,6 +1014,7 @@ CombatTab:Toggle({
         end
 
         _G.Z_GunMods_InfAmmo = Value
+        
         if _G.UpdateArrayList then
             _G.UpdateArrayList("Inf Balas", Value, "")
         end
@@ -1015,10 +1022,14 @@ CombatTab:Toggle({
         if _G.Z_GunMods_InfAmmo then
             hackedTools = {}
             local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
-            if tool then onToolEquipped(tool) end
+            if tool then
+                onToolEquipped(tool)
+            end
         end
         
-        if _G.Z_ForceGunScan then _G.Z_ForceGunScan() end
+        if _G.Z_ForceGunScan then 
+            _G.Z_ForceGunScan() 
+        end
     end
 })
 
@@ -1041,7 +1052,9 @@ CombatTab:Button({
             _G.UpdateArrayList("No Recoil", _G.Z_GunMods_NoRecoil, "")
         end
 
-        if _G.Z_ForceGunScan then _G.Z_ForceGunScan() end
+        if _G.Z_ForceGunScan then 
+            _G.Z_ForceGunScan() 
+        end
     end
 })
 
@@ -1059,7 +1072,9 @@ VisualsTab:Toggle({
         else
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
+        
         _G.Z_ESP_Master = state 
+        
         if _G.UpdateArrayList then
             _G.UpdateArrayList("Esp 2X", state, "")
         end
@@ -1127,6 +1142,7 @@ VisualsTab:Toggle({
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
         _G.Z_Tracers_Enabled = state 
+        
         if _G.UpdateArrayList then
             _G.UpdateArrayList("Tracers", state, "")
         end
@@ -1145,7 +1161,12 @@ VisualsTab:Toggle({
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
         _G.Z_Tracer_TeamCheck = state 
-        WindUI:Notify({ Title = "Z'v2", Content = state and "On" or "Off", Time = 0.5 })
+        
+        WindUI:Notify({
+            Title = "Z'v2",
+            Content = state and "On" or "Off",
+            Time = 0.5
+        })
     end
 })
 
@@ -1291,7 +1312,12 @@ OtherTab:Toggle({
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
         _G.Z_NoFall_Enabled = Value
-        if _G.UpdateArrayList then _G.UpdateArrayList("No Fall", Value) end
+
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("No Fall", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("No Fall", Value)
+        end
     end,
 })
 
@@ -1309,11 +1335,19 @@ OtherTab:Toggle({
         _G.Z_Spin_Enabled = Value
 
         if not Value then
-            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then hum.AutoRotate = true end
+            local lp = Players.LocalPlayer
+            local char = lp and lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.AutoRotate = true
+            end
         end
 
-        if _G.UpdateArrayList then _G.UpdateArrayList("Spinbot", Value) end
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("Spinbot", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("Spinbot", Value)
+        end
     end,
 })
 
@@ -1333,11 +1367,19 @@ OtherTab:Toggle({
         _G.Zinvis = Value
 
         if not Value then
-            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
+            local lp = Players.LocalPlayer
+            local char = lp and lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.CameraOffset = Vector3.new(0, 0, 0)
+            end
         end
 
-        if _G.UpdateArrayList then _G.UpdateArrayList("ExuVisibilyti", Value) end
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("ExuVisibilyti", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("ExuVisibilyti", Value)
+        end
     end,
 })
 
@@ -1353,7 +1395,12 @@ OtherTab:Toggle({
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
         _G.DesyncEnabled = Value
-        if _G.UpdateArrayList then _G.UpdateArrayList("Desync", Value) end
+
+        if typeof(UpdateArrayList) == "function" then
+            UpdateArrayList("Desync", Value)
+        elseif _G.UpdateArrayList then
+            _G.UpdateArrayList("Desync", Value)
+        end
     end,
 })
 
@@ -1363,12 +1410,16 @@ OtherTab:Slider({
     Flag = "Z_Desync_Slider_Flag",
     Step = 1,
     Value = { Min = 1, Max = 200, Default = _G.DesyncPower },
-    Callback = function(val) _G.DesyncPower = val end
+    Callback = function(val)
+        _G.DesyncPower = val
+    end
 })
 
 local targetFOV = 70
 
-if _G.FOVConnection then _G.FOVConnection:Disconnect() end
+if _G.FOVConnection then
+    _G.FOVConnection:Disconnect()
+end
 
 _G.FOVConnection = RunService.RenderStepped:Connect(function()
     if workspace.CurrentCamera then
@@ -1386,8 +1437,10 @@ UniversalTab:Slider({
     Value = { Min = 70, Max = 120, Default = 70 },
     Callback = function(v)
         targetFOV = v
+
         if _G.UpdateArrayList then
-            _G.UpdateArrayList("FOV", v ~= 70, "[" .. tostring(v) .. "]")
+            local isChanged = (v ~= 70)
+            _G.UpdateArrayList("FOV", isChanged, "[" .. tostring(v) .. "]")
         end
     end
 })
@@ -1403,20 +1456,23 @@ UniversalTab:Toggle({
         else
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
+        local lighting = game:GetService("Lighting")
 
         if state then
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 100000
-            Lighting.GlobalShadows = false
+            lighting.Brightness = 2
+            lighting.ClockTime = 14
+            lighting.FogEnd = 100000
+            lighting.GlobalShadows = false
         else
-            Lighting.Brightness = 1
-            Lighting.ClockTime = 12
-            Lighting.FogEnd = 10000
-            Lighting.GlobalShadows = true
+            lighting.Brightness = 1
+            lighting.ClockTime = 12
+            lighting.FogEnd = 10000
+            lighting.GlobalShadows = true
         end
 
-        if _G.UpdateArrayList then _G.UpdateArrayList("Fullbright", state, "") end
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Fullbright", state, "")
+        end
     end
 })
 
@@ -1434,7 +1490,9 @@ UniversalTab:Toggle({
             if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
         end
         _G.Z_Hitbox_Active = state
-        if not state then _G.Z_Force_Reset = true end
+        if not state then
+            _G.Z_Force_Reset = true
+        end
         if _G.UpdateArrayList then
             _G.UpdateArrayList("Hitbox", state, "[" .. tostring(_G.Z_Hitbox_Size) .. "]")
         end
@@ -1483,9 +1541,6 @@ UniversalTab:Toggle({
     end
 })
 
--- --------------------------------------------------------
--- AIMBOT & SILENT AIM MODULES
--- --------------------------------------------------------
 _G.Aimbot_Enabled = false
 _G.Aimbot_Smoothness = 0.2
 _G.Aimbot_FOV = 150
@@ -1544,14 +1599,18 @@ local function getTarget()
         local inRange = true
         if localRoot and rootPart then
             local worldDist = (rootPart.Position - localRoot.Position).Magnitude
-            if worldDist > _G.Aimbot_MaxDistance then inRange = false end
+            if worldDist > _G.Aimbot_MaxDistance then
+                inRange = false
+            end
         end
 
         if player and humanoid and humanoid.Health > 0 and inRange and passesAntiBot and not isTeam and isPartVisible(currentTarget) then
             local screenPos, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
             if onScreen then
                 local dist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
-                if dist <= _G.Aimbot_FOV then return currentTarget end
+                if dist <= _G.Aimbot_FOV then
+                    return currentTarget
+                end
             end
         end
     end
@@ -1562,7 +1621,7 @@ local function getTarget()
 
     local validPlayers = _G.GetRealPlayers and _G.GetRealPlayers() or Players:GetPlayers()
 
-    for _, player in ipairs(validPlayers) do
+    for _, player in pairs(validPlayers) do
         if player ~= LocalPlayer and player.Character then
             local isTeam = _G.Aimbot_TeamCheck and LocalPlayer.Team and player.Team == LocalPlayer.Team
             if not isTeam then
@@ -1622,7 +1681,9 @@ CombatTab:Toggle({
     Flag = "Combat_Aimbot",
     Value = false,
     Callback = function(state)
-        if state and _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        if state and _G.PlayOptionActivated then
+            _G.PlayOptionActivated()
+        end
         _G.Aimbot_Enabled = state
         if not state then currentTarget = nil end
         if _G.UpdateArrayList then
@@ -1652,7 +1713,9 @@ CombatTab:Slider({
     Flag = "Combat_Smooth",
     Step = 0.05,
     Value = { Min = 0.05, Max = 1, Default = 0.2 },
-    Callback = function(v) _G.Aimbot_Smoothness = v end
+    Callback = function(v)
+        _G.Aimbot_Smoothness = v
+    end
 })
 
 CombatTab:Slider({
@@ -1661,7 +1724,9 @@ CombatTab:Slider({
     Flag = "Combat_Prediction",
     Step = 0.01,
     Value = { Min = 0, Max = 0.3, Default = 0.12 },
-    Callback = function(v) _G.Aimbot_Prediction = v end
+    Callback = function(v)
+        _G.Aimbot_Prediction = v
+    end
 })
 
 CombatTab:Slider({
@@ -1670,7 +1735,9 @@ CombatTab:Slider({
     Flag = "Combat_MaxDistance",
     Step = 50,
     Value = { Min = 1, Max = 5000, Default = 5000 },
-    Callback = function(v) _G.Aimbot_MaxDistance = v end
+    Callback = function(v)
+        _G.Aimbot_MaxDistance = v
+    end
 })
 
 CombatTab:Toggle({
@@ -1694,7 +1761,9 @@ CombatTab:Slider({
     Flag = "Combat_FOVSize",
     Step = 10,
     Value = { Min = 20, Max = 500, Default = 150 },
-    Callback = function(v) _G.Aimbot_FOV = v end
+    Callback = function(v)
+        _G.Aimbot_FOV = v
+    end
 })
 
 CombatTab:Toggle({
@@ -1764,7 +1833,7 @@ local function getClosestTargetSilent()
 
     local validPlayers = _G.GetRealPlayers and _G.GetRealPlayers() or Players:GetPlayers()
 
-    for _, pl in ipairs(validPlayers) do
+    for _, pl in pairs(validPlayers) do
         if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("Head") then
             local isTeam = _G.Silent_TeamCheck and LocalPlayer.Team and pl.Team and pl.Team == LocalPlayer.Team
             if not isTeam then
@@ -1803,45 +1872,45 @@ local function checkWeapon()
     WeaponEquipped = tool and true or false
 end
 
-if hookmetamethod and getnamecallmethod and checkcaller then
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
-        local method = getnamecallmethod()
-        local args = {...}
-        local self = args[1]
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+    local method = getnamecallmethod()
+    local args = {...}
+    local self = args[1]
 
-        if _G.Silent_Enabled and not checkcaller() and self == workspace and method == "Raycast" then
-            local origin = args[2]
-            local direction = args[3]
-            local params = args[4]
-            if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" and CurrentTargetSilent then
-                if not params then params = RaycastParams.new() end
-                pcall(function()
-                    params.FilterType = Enum.RaycastFilterType.Include
-                    params.FilterDescendantsInstances = {CurrentTargetSilent.Parent}
-                end)
-                args[3] = (CurrentTargetSilent.Position - origin).Unit * math.max(direction.Magnitude, (CurrentTargetSilent.Position - origin).Magnitude + 500)
-                args[4] = params
-                return oldNamecall(unpack(args))
+    if _G.Silent_Enabled and not checkcaller() and self == workspace and method == "Raycast" then
+        local origin = args[2]
+        local direction = args[3]
+        local params = args[4]
+        if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" and CurrentTargetSilent then
+            if not params then
+                params = RaycastParams.new()
             end
+            pcall(function()
+                params.FilterType = Enum.RaycastFilterType.Include
+                params.FilterDescendantsInstances = {CurrentTargetSilent.Parent}
+            end)
+            args[3] = (CurrentTargetSilent.Position - origin).Unit * math.max(direction.Magnitude, (CurrentTargetSilent.Position - origin).Magnitude + 500)
+            args[4] = params
+            return oldNamecall(unpack(args))
         end
+    end
 
-        if _G.Silent_Enabled and not checkcaller() and WeaponEquipped then
-            local recoilMethods = {"ApplyRecoil", "AddRecoil", "DoRecoil"}
-            for _, rm in ipairs(recoilMethods) do
-                if method == rm then return nil end
-            end
+    if _G.Silent_Enabled and not checkcaller() and WeaponEquipped then
+        local recoilMethods = {"ApplyRecoil", "AddRecoil", "DoRecoil"}
+        for _, rm in pairs(recoilMethods) do
+            if method == rm then return nil end
         end
+    end
 
-        return oldNamecall(...)
-    end))
-end
+    return oldNamecall(...)
+end))
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed or not _G.Silent_Enabled then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         IsShooting = true
-        if WeaponEquipped then
+        if WeaponEquipped me
             OriginalCameraCFrame = Camera.CFrame
             CameraLocked = true
         end
@@ -1964,7 +2033,9 @@ SilentTab:Slider({
     Flag = "Silent_Range",
     Step = 10,
     Value = { Min = 10, Max = 5000, Default = 150 },
-    Callback = function(v) _G.Silent_Range = v end
+    Callback = function(v)
+        _G.Silent_Range = v
+    end
 })
 
 SilentTab:Slider({
@@ -1973,12 +2044,11 @@ SilentTab:Slider({
     Flag = "Silent_FOV",
     Step = 10,
     Value = { Min = 20, Max = 500, Default = 120 },
-    Callback = function(v) _G.Silent_FOV = v end
+    Callback = function(v)
+        _G.Silent_FOV = v
+    end
 })
 
--- --------------------------------------------------------
--- CONFIG MANAGER
--- --------------------------------------------------------
 ConfigTab:Section({ Title = "Gestor de Configuraciones (Max. 5)" })
 
 local ConfigLimit = 5
@@ -2011,123 +2081,5 @@ end
 
 local StatusParagraph = ConfigTab:Paragraph({
     Title = "Estado de Configuraciones",
-    Desc = "Cargando..."
-})
-
-local function RefreshConfigList()
-    local saved = GetSavedConfigs()
-    StatusParagraph:SetDesc("Configuraciones guardadas: " .. tostring(#saved) .. " / " .. tostring(ConfigLimit))
-    if ConfigDropdown then
-        if ConfigDropdown.SetValues then
-            ConfigDropdown:SetValues(saved)
-        elseif ConfigDropdown.Refresh then
-            ConfigDropdown:Refresh(saved)
-        end
-    end
-end
-
-ConfigDropdown = ConfigTab:Dropdown({
-    Title = "Seleccionar Configuracion",
-    Desc = "Elige una configuracion guardada para cargar o eliminar",
-    Values = GetSavedConfigs(),
-    Value = "",
-    Callback = function(selected)
-        SelectedConfig = selected
-    end
-})
-
-ConfigTab:Button({
-    Title = "Cargar Configuracion Seleccionada",
-    Desc = "Aplica los ajustes de la config elegida en la lista",
-    Callback = function()
-        if not SelectedConfig or SelectedConfig == "" then
-            WindUI:Notify({ Title = "Error", Content = "Selecciona una config de la lista desplegable.", Icon = "x", Duration = 3 })
-            return
-        end
-
-        local MyConfig = Window.ConfigManager:Config(SelectedConfig)
-        MyConfig:Load()
-
-        WindUI:Notify({ Title = "Cargado", Content = "Config cargada: " .. SelectedConfig, Icon = "check", Duration = 3 })
-    end
-})
-
-ConfigTab:Section({ Title = "Save Settings" })
-
-ConfigTab:Input({
-    Title = "Nombre de la Configuracion",
-    Desc = "Escribe un nombre para crear o sobrescribir",
-    Value = "",
-    PlaceholderText = "Ejemplo: legit_pvp",
-    Callback = function(text)
-        SaveConfigName = text
-    end
-})
-
-ConfigTab:Button({
-    Title = "Crear / Guardar Configuracion",
-    Desc = "Guarda los ajustes actuales con el nombre escrito arriba",
-    Callback = function()
-        if not SaveConfigName or SaveConfigName == "" then
-            WindUI:Notify({ Title = "Error", Content = "Escribe un nombre en la casilla superior.", Icon = "x", Duration = 3 })
-            return
-        end
-
-        local saved = GetSavedConfigs()
-        local alreadyExists = false
-        for _, name in ipairs(saved) do
-            if name == SaveConfigName then
-                alreadyExists = true
-                break
-            end
-        end
-
-        if not alreadyExists and #saved >= ConfigLimit then
-            WindUI:Notify({ Title = "Limite Alcanzado", Content = "Ya tienes 5 configs guardadas.", Icon = "alert-triangle", Duration = 4 })
-            return
-        end
-
-        local MyConfig = Window.ConfigManager:Config(SaveConfigName)
-        MyConfig:Save()
-
-        task.wait(0.3)
-        RefreshConfigList()
-
-        WindUI:Notify({ Title = "Guardado", Content = "Config guardada: " .. SaveConfigName, Icon = "check", Duration = 3 })
-    end
-})
-
-ConfigTab:Button({
-    Title = "Eliminar Configuracion Seleccionada",
-    Desc = "Borra el archivo .json de la config elegida",
-    Callback = function()
-        if not SelectedConfig or SelectedConfig == "" then
-            WindUI:Notify({ Title = "Error", Content = "Selecciona una config para eliminar.", Icon = "x", Duration = 3 })
-            return
-        end
-
-        local folderPath = GetConfigFolderPath()
-        local filePath = folderPath .. "/" .. SelectedConfig .. ".json"
-
-        if isfile and isfile(filePath) and delfile then
-            delfile(filePath)
-            WindUI:Notify({ Title = "Eliminado", Content = "Se elimino: " .. SelectedConfig, Icon = "trash", Duration = 3 })
-        else
-            WindUI:Notify({ Title = "Aviso", Content = "No se encontro la config en carpeta.", Icon = "alert-triangle", Duration = 3 })
-        end
-
-        SelectedConfig = nil
-        task.wait(0.3)
-        RefreshConfigList()
-    end
-})
-
-RefreshConfigList()
-InfoTab:Select()
-
-WindUI:Notify({
-    Title = "Z Nexus",
-    Content = "Loader verificado con éxito.",
-    Icon = "check",
-    Duration = 1,
+    Desc = "Cargando el gestor de configuraciones..."
 })
