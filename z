@@ -1,9 +1,3 @@
-local TextService = game:GetService("TextService")
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
-local Stats = game:GetService("Stats")
 local session = getgenv().ZNexusSession
 
 -- 1. Validar que la sesión exista y esté autenticada
@@ -20,6 +14,16 @@ if session.Token ~= expectedToken then
 end
 
 print("[Z NEXUS] ¡Sesión verificada correctamente! Cargando script...")
+
+-- Definición de Servicios y Jugador Local
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local TextService = game:GetService("TextService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local Stats = game:GetService("Stats")
 
 local V2_Active = true
 local SoundService = game:GetService("SoundService")
@@ -350,15 +354,16 @@ local function ExecuteKill()
     local target = getgenv().CurrentTarget
     if not target then return end
     
-    local char = LocalPlayer.Character
-    local backpack = LocalPlayer.Backpack
+    local char = LocalPlayer and LocalPlayer.Character
+    local backpack = LocalPlayer and LocalPlayer:FindFirstChild("Backpack")
     local myRoot = char and char:FindFirstChild("HumanoidRootPart")
     
-    local gun = char:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun"))
-    if not gun or not myRoot then return end
+    local gun = (char and char:FindFirstChild("Gun")) or (backpack and backpack:FindFirstChild("Gun"))
+    if not gun or not myRoot or not char then return end
 
     if gun.Parent ~= char then 
-        char.Humanoid:EquipTool(gun)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum:EquipTool(gun) end
         task.wait(0.05)
     end
 
@@ -373,7 +378,7 @@ local function ExecuteKill()
     if gun:FindFirstChild("Shoot") then 
         gun.Shoot:FireServer(unpack(args))
         
-        if V2_Active then
+        if V2_Active and backpack then
             task.wait(0.05)
             gun.Parent = backpack 
         end
@@ -430,27 +435,29 @@ local function onToolEquipped(tool)
     hackedTools[tool] = true
 end
 
-if Player.Character then
+if Player and Player.Character then
     table.insert(connections, Player.Character.ChildAdded:Connect(function(child)
         if child:IsA("Tool") then onToolEquipped(child) end
     end))
 end
 
-table.insert(connections, Player.CharacterAdded:Connect(function(char)
-    hackedTools = {}
-    table.insert(connections, char.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") then onToolEquipped(child) end
+if Player then
+    table.insert(connections, Player.CharacterAdded:Connect(function(char)
+        hackedTools = {}
+        table.insert(connections, char.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") then onToolEquipped(child) end
+        end))
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then onToolEquipped(tool) end
     end))
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool then onToolEquipped(tool) end
-end))
+end
 
 task.spawn(function()
     while gunLoopActive do
         task.wait(0.05)
         if _G.Z_GunMods_Active and _G.Z_GunMods_InfAmmo then
             pcall(function()
-                local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
+                local tool = Player and Player.Character and Player.Character:FindFirstChildOfClass("Tool")
                 if tool then
                     _G.Z_ForceGunScan()
                     for _, obj in pairs(tool:GetDescendants()) do
@@ -477,7 +484,7 @@ _G.Z_ESP_Color = Color3.fromRGB(0, 255, 0)
 
 task.spawn(function()
     local Camera = workspace.CurrentCamera
-    local LP = Players.LocalPlayer
+    local LP = LocalPlayer
 
     if CoreGui:FindFirstChild("Z_ESP_LITE") then CoreGui.Z_ESP_LITE:Destroy() end
 
@@ -598,7 +605,7 @@ _G.Z_Tracer_Transparency = 0.4
 
 task.spawn(function()
     local Camera = workspace.CurrentCamera
-    local LP = Players.LocalPlayer
+    local LP = LocalPlayer
 
     if CoreGui:FindFirstChild("Z_TRACERS_LITE") then
         CoreGui.Z_TRACERS_LITE:Destroy()
@@ -696,14 +703,12 @@ end)
 _G.Z_NoFall_Enabled = false
 
 task.spawn(function()
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local LP = Players.LocalPlayer
+    local LP = LocalPlayer
 
     RunService.Heartbeat:Connect(function()
         if not _G.Z_NoFall_Enabled then return end
 
-        local char = LP.Character
+        local char = LP and LP.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
@@ -721,31 +726,27 @@ end)
 
 _G.Zinvis = false
 
-game:GetService("RunService").Heartbeat:Connect(function()
-    local lp = game.Players.LocalPlayer
-    local char = lp.Character
+RunService.Heartbeat:Connect(function()
+    local lp = LocalPlayer
+    local char = lp and lp.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChild("Humanoid")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
 
     if _G.Zinvis and root and hum and hum.Health > 0 then
         local oldPos = root.CFrame
 
         root.CFrame = oldPos * CFrame.new(0, 999, 0)
-        
         hum.CameraOffset = Vector3.new(0, -999, 0)
         
-        game:GetService("RunService").RenderStepped:Wait()
-        root.CFrame = oldPos
+        RunService.RenderStepped:Wait()
+        if root then root.CFrame = oldPos end
     elseif hum then
         hum.CameraOffset = Vector3.new(0, 0, 0)
     end
 end)
 
 task.spawn(function()
-    local RunService = game:GetService("RunService")
-    local Players = game:GetService("Players")
-    local Camera = workspace.CurrentCamera
-    local LP = Players.LocalPlayer
+    local LP = LocalPlayer
 
     local RealCFrame = nil
     local CamAnchor = nil
@@ -765,9 +766,9 @@ task.spawn(function()
     end
 
     RunService.RenderStepped:Connect(function()
-        local Char = LP.Character
+        local Char = LP and LP.Character
         local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-        local Hum = Char and Char:FindFirstChild("Humanoid")
+        local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
 
         if _G.DesyncEnabled and HRP and Hum and RealCFrame then
             HRP.CFrame = RealCFrame
@@ -807,7 +808,7 @@ task.spawn(function()
     end)
 
     RunService.Heartbeat:Connect(function()
-        local Char = LP.Character
+        local Char = LP and LP.Character
         local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
         
         if _G.DesyncEnabled and HRP then
@@ -836,13 +837,11 @@ end)
 _G.Z_Spin_Enabled = false
 
 task.spawn(function()
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local LP = Players.LocalPlayer
+    local LP = LocalPlayer
     local spinAngle = 0
 
     RunService.Heartbeat:Connect(function()
-        local char = LP.Character
+        local char = LP and LP.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
@@ -875,7 +874,7 @@ local d_p = "Z".."Data".."99"
 RunService.Heartbeat:Connect(function()
     if not _G.Z_Hitbox_Active and not _G.Z_Force_Reset then return end
 
-    local lp = Players.LocalPlayer
+    local lp = LocalPlayer
     local val_size = _G.Z_Hitbox_Size or 20
     local v_size = Vector3.new(val_size, val_size, val_size)
 
@@ -883,7 +882,7 @@ RunService.Heartbeat:Connect(function()
         if p ~= lp and p.Character then
             local char = p.Character
 
-            local is_team = _G.Z_Team_Check and lp.Team and p.Team == lp.Team
+            local is_team = _G.Z_Team_Check and lp and lp.Team and p.Team == lp.Team
             if not _G.Z_Hitbox_Active or _G.Z_Force_Reset or is_team then
                 for _, part in pairs(char:GetChildren()) do
                     local backup = part:FindFirstChild(d_p)
@@ -1011,7 +1010,7 @@ CombatTab:Toggle({
         
         if _G.Z_GunMods_InfAmmo then
             hackedTools = {}
-            local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
+            local tool = Player and Player.Character and Player.Character:FindFirstChildOfClass("Tool")
             if tool then
                 onToolEquipped(tool)
             end
@@ -1325,7 +1324,7 @@ OtherTab:Toggle({
         _G.Z_Spin_Enabled = Value
 
         if not Value then
-            local lp = Players.LocalPlayer
+            local lp = LocalPlayer
             local char = lp and lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum then
@@ -1357,7 +1356,7 @@ OtherTab:Toggle({
         _G.Zinvis = Value
 
         if not Value then
-            local lp = Players.LocalPlayer
+            local lp = LocalPlayer
             local char = lp and lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum then
@@ -1556,7 +1555,7 @@ end
 
 local function isPartVisible(part)
     if not _G.Aimbot_WallCheck then return true end
-    local char = LocalPlayer.Character
+    local char = LocalPlayer and LocalPlayer.Character
     if not char then return false end
 
     local origin = Camera.CFrame.Position
@@ -1574,7 +1573,7 @@ end
 
 local function getTarget()
     local centerPos = getScreenCenter()
-    local localChar = LocalPlayer.Character
+    local localChar = LocalPlayer and LocalPlayer.Character
     local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
 
     if currentTarget and currentTarget.Parent then
@@ -1583,7 +1582,7 @@ local function getTarget()
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         local rootPart = char:FindFirstChild("HumanoidRootPart")
         
-        local isTeam = _G.Aimbot_TeamCheck and LocalPlayer.Team and player and player.Team == LocalPlayer.Team
+        local isTeam = _G.Aimbot_TeamCheck and LocalPlayer and LocalPlayer.Team and player and player.Team == LocalPlayer.Team
         local passesAntiBot = (_G.IsRealPlayer and player) and _G.IsRealPlayer(player) or true
 
         local inRange = true
@@ -1613,7 +1612,7 @@ local function getTarget()
 
     for _, player in pairs(validPlayers) do
         if player ~= LocalPlayer and player.Character then
-            local isTeam = _G.Aimbot_TeamCheck and LocalPlayer.Team and player.Team == LocalPlayer.Team
+            local isTeam = _G.Aimbot_TeamCheck and LocalPlayer and LocalPlayer.Team and player.Team == LocalPlayer.Team
             if not isTeam then
                 local character = player.Character
                 local targetPart = character:FindFirstChild(_G.Aimbot_Part)
@@ -1815,7 +1814,7 @@ FOVCircleSilent.Visible = false
 
 local function getClosestTargetSilent()
     local centerPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local char = LocalPlayer.Character
+    local char = LocalPlayer and LocalPlayer.Character
     if not char or not char.PrimaryPart then return nil end
     local localPos = char.PrimaryPart.Position
     local closest = nil
@@ -1825,7 +1824,7 @@ local function getClosestTargetSilent()
 
     for _, pl in pairs(validPlayers) do
         if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("Head") then
-            local isTeam = _G.Silent_TeamCheck and LocalPlayer.Team and pl.Team and pl.Team == LocalPlayer.Team
+            local isTeam = _G.Silent_TeamCheck and LocalPlayer and LocalPlayer.Team and pl.Team and pl.Team == LocalPlayer.Team
             if not isTeam then
                 local humanoid = pl.Character:FindFirstChildOfClass("Humanoid")
                 if humanoid and humanoid.Health > 0 then
@@ -1853,7 +1852,7 @@ local function getClosestTargetSilent()
 end
 
 local function checkWeapon()
-    local char = LocalPlayer.Character
+    local char = LocalPlayer and LocalPlayer.Character
     if not char then 
         WeaponEquipped = false
         return 
@@ -2044,7 +2043,6 @@ ConfigTab:Section({ Title = "Gestor de Configuraciones (Max. 5)" })
 local ConfigLimit = 5
 local SaveConfigName = ""
 local SelectedConfig = nil
-local ConfigDropdown
 
 local function GetConfigFolderPath()
     local path1 = "WindUI/" .. Window.Folder .. "/config"
@@ -2071,5 +2069,5 @@ end
 
 local StatusParagraph = ConfigTab:Paragraph({
     Title = "Estado de Configuraciones",
-    Desc = "Cargando el gestor de configuraciones..."
+    Desc = "Gestor listo."
 })
