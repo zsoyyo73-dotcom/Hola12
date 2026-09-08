@@ -1,3 +1,9 @@
+local TextService = game:GetService("TextService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local Stats = game:GetService("Stats")
 local session = getgenv().ZNexusSession
 
 -- 1. Validar que la sesión exista y esté autenticada
@@ -14,13 +20,6 @@ if session.Token ~= expectedToken then
 end
 
 print("[Z NEXUS] ¡Sesión verificada correctamente! Cargando script...")
-
-local TextService = game:GetService("TextService")
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
-local Stats = game:GetService("Stats")
 
 local V2_Active = true
 local SoundService = game:GetService("SoundService")
