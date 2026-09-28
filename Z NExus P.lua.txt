@@ -12,9 +12,11 @@ local SoundService = game:GetService("SoundService")
 
 local fileActivated = "OpcionActivada1.mp3"
 local fileDeactivated = "OpcionDesactivada1.mp3"
+local fileDemon1 = "Demon1.png"
 
 local urlActivated = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/lv_0_20260816050935_mixed.mp3"
 local urlDeactivated = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/lv_0_20260816044033_original_mixed.mp3"
+local urlDemon1 = "https://raw.githubusercontent.com/z22026we-beep/Iconos/main/Esp%20Tag.png"
 
 task.spawn(function()
     if not isfile(fileActivated) then
@@ -268,10 +270,10 @@ local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/rel
 WindUI:SetTheme("Dark")
 
 local Window = WindUI:CreateWindow({
-    Title = "Ｚ  ＮＥＸＵＳ",
-    Icon = "rbxthumb://type=Asset&id=88212626965405&w=420&h=420",
-    Author = "<i><font color='#888888'>By</font> <font color='#00FF00'>@znoreste</font></i>",
-    Folder = "ZNexus",
+    Title = "  Ｚ  ＮＥＸＵＳ v2",
+    Icon = "https://raw.githubusercontent.com/zsoyyo73-dotcom/zx/heads/main/daff_czq%20en%20TikTok.jpg",
+    Author = "   <i><font color='#888888'>By</font> <font color='#00FF00'>@znoreste</font></i>",
+    Folder = "ZNexus v2",
     Size = UDim2.fromOffset(600, 480),
     MinSize = Vector2.new(560, 350),
     MaxSize = Vector2.new(850, 560),
@@ -296,7 +298,7 @@ local Window = WindUI:CreateWindow({
     },
 
     OpenButton = {
-        Title = "Z Nexus",
+        Title = "Z Nexus - Universal Games",
         CornerRadius = UDim.new(4, 7),
         StrokeThickness = 0.0,
         Enabled = true,
@@ -308,8 +310,8 @@ local Window = WindUI:CreateWindow({
         )
     },
 
-    Background = "https://raw.githubusercontent.com/z22026we-beep/zeus/main/VeniceAI_AOYcKtt.png",
-    BackgroundImageTransparency = 0.35,
+    Background = "https://raw.githubusercontent.com/zsoyyo73-dotcom/zx/heads/main/zne.png",
+    BackgroundImageTransparency = 0.05,
 
     User = {
         Enabled = true,
@@ -321,16 +323,19 @@ local Window = WindUI:CreateWindow({
     },
 })
 
-local InfoTab = Window:Tab({ Title = "Home", Icon = "info" })
-local CombatTab = Window:Tab({ Title = "Combat", Icon = "home" })
-local VisualsTab = Window:Tab({ Title = "Render", Icon = "home" })
-local SilentTab = Window:Tab({ Title = "Silent Aim", Icon = "home" })
+local HomeTab   = Window:Tab({ Title = "Inicio", Icon = "house" })
+local FpsTab   = Window:Tab({ Title = "Extra Fps", Icon = "rocket" })
+local CombatTab = Window:Tab({ Title = "Combat", Icon = "user-round-cog" })
+local VisualsTab = Window:Tab({ Title = "Render", Icon = "eye" })
+local SilentTab = Window:Tab({ Title = "Silent Aim", Icon = "locate" })
 local MainTab = Window:Tab({ Title = "", Icon = "info" })
-local OtherTab = Window:Tab({ Title = "Other", Icon = "home" })
-local UniversalTab = Window:Tab({ Title = "Universal", Icon = "home" })
-local ConfigTab = Window:Tab({ Title = "Config Save", Icon = "home" })
+local OtherTab = Window:Tab({ Title = "Other", Icon = "github" })
+local UniversalTab = Window:Tab({ Title = "Universal", Icon = "folder-closed" })
+local ConfigTab = Window:Tab({ Title = "Config Save", Icon = "settings" })
 
-local Player = LocalPlayer
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local gunLoopActive = true
 local connections = {}
 local hackedTools = {}
@@ -343,8 +348,8 @@ local function ExecuteKill()
     local target = getgenv().CurrentTarget
     if not target then return end
     
-    local char = LocalPlayer.Character
-    local backpack = LocalPlayer.Backpack
+    local char = Player.Character
+    local backpack = Player.Backpack
     local myRoot = char and char:FindFirstChild("HumanoidRootPart")
     
     local gun = char:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun"))
@@ -421,6 +426,7 @@ end
 local function onToolEquipped(tool)
     if not _G.Z_GunMods_Active or not tool or hackedTools[tool] then return end
     hackedTools[tool] = true
+    _G.Z_ForceGunScan()
 end
 
 if Player.Character then
@@ -438,14 +444,24 @@ table.insert(connections, Player.CharacterAdded:Connect(function(char)
     if tool then onToolEquipped(tool) end
 end))
 
+-- Loop optimizado: respeta tus valores altos pero evita saturar el motor del juego
 task.spawn(function()
+    local scanTimer = 0
     while gunLoopActive do
-        task.wait(0.05)
+        task.wait(0.2) -- Pausa equilibrada para que el cel no sufra ni se bloquee el arma
+        scanTimer = scanTimer + 0.2
+        
+        if scanTimer >= 1.0 then
+            scanTimer = 0
+            if _G.Z_GunMods_Active and _G.Z_GunMods_InfAmmo then
+                _G.Z_ForceGunScan()
+            end
+        end
+
         if _G.Z_GunMods_Active and _G.Z_GunMods_InfAmmo then
             pcall(function()
                 local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
                 if tool then
-                    _G.Z_ForceGunScan()
                     for _, obj in pairs(tool:GetDescendants()) do
                         if obj:IsA("IntValue") or obj:IsA("NumberValue") then
                             local n = obj.Name:lower()
@@ -461,6 +477,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 _G.Z_ESP_Master = false
 _G.Z_ESP_Boxes = true
@@ -580,6 +597,287 @@ task.spawn(function()
             end
         end
     end)
+end)
+
+_G.Z_ESP_Chams = false
+_G.Z_ESP_Chams_Color = Color3.fromRGB(170, 0, 255)
+_G.Z_ESP_Chams_TeamCheck = true
+
+_G.Z_ESP_Tags = false
+_G.Z_ESP_Tags_Color = Color3.fromRGB(255, 0, 0)
+_G.Z_ESP_Tags_TeamCheck = true
+_G.Z_ESP_Tags_Transparency = 1
+
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local CoreGui = game:GetService("CoreGui")
+    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+
+    local AntiBotCache = {}
+    local CacheTimers = {}
+
+    local function IsRealPlayer(player)
+        if not player or not player:IsA("Player") or player == LocalPlayer or player.UserId <= 0 then return false end
+        
+        local char = player.Character
+        if not char or not char.Parent then return false end
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local head = char:FindFirstChild("Head")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        
+        if not hum or hum.Health <= 0 or not head or not root then 
+            AntiBotCache[player] = false
+            return false 
+        end
+        
+        local tickNow = tick()
+        if CacheTimers[player] and (tickNow - CacheTimers[player] < 0.3) then
+            return AntiBotCache[player] or false
+        end
+        
+        local isReal = false
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                if part.Transparency + part.LocalTransparencyModifier < 0.9 then
+                    isReal = true
+                    break
+                end
+            end
+        end
+        
+        AntiBotCache[player] = isReal
+        CacheTimers[player] = tickNow
+        return isReal
+    end
+
+    _G.IsRealPlayer = IsRealPlayer
+
+    _G.GetRealPlayers = function()
+        local realPlayers = {}
+        for _, player in pairs(Players:GetPlayers()) do
+            if IsRealPlayer(player) then
+                table.insert(realPlayers, player)
+            end
+        end
+        return realPlayers
+    end
+
+    if CoreGui:FindFirstChild("Z_Chams_Folder") then  
+        CoreGui.Z_Chams_Folder:Destroy()  
+    end  
+
+    local ChamsFolder = Instance.new("Folder")  
+    ChamsFolder.Name = "Z_Chams_Folder"  
+
+    local success = pcall(function()  
+        ChamsFolder.Parent = CoreGui  
+    end)  
+
+    if not success then  
+        ChamsFolder.Parent = LocalPlayer:WaitForChild("PlayerGui")  
+    end  
+
+    local Highlights = {}  
+    local ESP_Data = {}  
+
+    local function CreateTextESP(player)  
+        if player == LocalPlayer or ESP_Data[player] then  
+            return  
+        end  
+
+        pcall(function()  
+            local box = Drawing.new("Square")
+            box.Visible = false
+            box.Filled = true
+            box.Color = Color3.fromRGB(0, 0, 0)
+            box.Transparency = _G.Z_ESP_Tags_Transparency 
+            box.Thickness = 0
+
+            local text = Drawing.new("Text")  
+            text.Visible = false  
+            text.Center = false  
+            text.Outline = false  
+            text.Font = 2  
+            text.Size = 13  
+            text.Color = _G.Z_ESP_Tags_Color  
+
+            ESP_Data[player] = {
+                Box = box,
+                Text = text
+            }  
+        end)  
+    end  
+
+    local function RemoveESP(player)  
+        local data = ESP_Data[player]  
+        if data then  
+            pcall(function()  
+                data.Text.Visible = false  
+                data.Text:Remove()  
+                data.Box.Visible = false  
+                data.Box:Remove()  
+            end)  
+            ESP_Data[player] = nil  
+        end  
+
+        local hl = Highlights[player]  
+        if hl then  
+            pcall(function()  
+                hl:Destroy()  
+            end)  
+            Highlights[player] = nil  
+        end  
+        AntiBotCache[player] = nil
+        CacheTimers[player] = nil
+    end  
+
+    local function CreateChams(player, character)  
+        if not character then return end  
+
+        local hl = Highlights[player]  
+
+        if not hl or not hl.Parent then  
+            local ok, newHighlight = pcall(function()  
+                local highlight = Instance.new("Highlight")  
+                highlight.Name = player.Name .. "_Chams"  
+                highlight.FillTransparency = 0.5  
+                highlight.OutlineTransparency = 0.1  
+                highlight.Parent = ChamsFolder  
+                return highlight  
+            end)  
+
+            if not ok or not newHighlight then return end  
+            hl = newHighlight  
+            Highlights[player] = hl  
+        end  
+
+        hl.Adornee = character  
+        hl.FillColor = _G.Z_ESP_Chams_Color  
+        hl.OutlineColor = _G.Z_ESP_Chams_Color  
+    end  
+
+    for _, player in ipairs(Players:GetPlayers()) do  
+        if player ~= LocalPlayer then CreateTextESP(player) end  
+    end  
+
+    Players.PlayerAdded:Connect(function(player)  
+        if player ~= LocalPlayer then CreateTextESP(player) end  
+    end)  
+
+    Players.PlayerRemoving:Connect(RemoveESP)  
+
+    RunService.RenderStepped:Connect(function()  
+        local Camera = workspace.CurrentCamera  
+        if not Camera then return end  
+
+        local chamsActive = _G.Z_ESP_Chams
+        local tagsActive = _G.Z_ESP_Tags
+
+        for _, player in ipairs(Players:GetPlayers()) do  
+            if player ~= LocalPlayer then  
+                local esp = ESP_Data[player]  
+
+                if not chamsActive and not tagsActive then
+                    if Highlights[player] then  
+                        pcall(function() Highlights[player]:Destroy() end)  
+                        Highlights[player] = nil  
+                    end
+                    if esp then
+                        esp.Text.Visible = false  
+                        esp.Box.Visible = false  
+                    end
+                    continue
+                end
+
+                local char = player.Character  
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")  
+                local hum = char and char:FindFirstChildOfClass("Humanoid")  
+                local head = char and char:FindFirstChild("Head")  
+
+                local isReal = IsRealPlayer(player)
+
+                if chamsActive and isReal then  
+                    local teamOk = not (_G.Z_ESP_Chams_TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team)
+
+                    if teamOk then
+                        CreateChams(player, char)  
+                    else  
+                        if Highlights[player] then  
+                            pcall(function() Highlights[player]:Destroy() end)  
+                            Highlights[player] = nil  
+                        end  
+                    end
+                else  
+                    if Highlights[player] then  
+                        pcall(function() Highlights[player]:Destroy() end)  
+                        Highlights[player] = nil  
+                    end  
+                end  
+
+                if tagsActive then  
+                    if not esp then  
+                        CreateTextESP(player)  
+                        esp = ESP_Data[player]  
+                    end  
+
+                    local teamOkTags = not (_G.Z_ESP_Tags_TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team)  
+
+                    if esp and isReal and teamOkTags and hum and head and hrp then  
+                        local headPos, onScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 2.2, 0))  
+
+                        if onScreen then  
+                            local distance = math.floor((Camera.CFrame.Position - hrp.Position).Magnitude)  
+                            local hp = math.floor(hum.Health)  
+
+                            local formattedText = string.format(" %s | %dm | %dhp ", player.Name, distance, hp)  
+                            
+                            esp.Text.Text = formattedText  
+                            esp.Text.Color = _G.Z_ESP_Tags_Color  
+
+                            esp.Box.Transparency = _G.Z_ESP_Tags_Transparency
+
+                            local textSize = esp.Text.TextBounds  
+                            if textSize.X <= 2 or textSize.Y <= 2 then
+                                textSize = Vector2.new(#formattedText * 7.2, 14)
+                            end
+
+                            local paddingX = 12  
+                            local paddingY = 6  
+
+                            local boxWidth = math.max(textSize.X + paddingX, 40)  
+                            local boxHeight = math.max(textSize.Y + paddingY, 18)  
+
+                            local boxPosX = headPos.X - (boxWidth / 2)  
+                            local boxPosY = headPos.Y - (boxHeight / 2)  
+
+                            esp.Box.Size = Vector2.new(boxWidth, boxHeight)  
+                            esp.Box.Position = Vector2.new(boxPosX, boxPosY)  
+                            esp.Box.Visible = true  
+
+                            esp.Text.Position = Vector2.new(boxPosX + (paddingX / 2), boxPosY + (paddingY / 2) - 1)  
+                            esp.Text.Visible = true  
+                        else  
+                            esp.Text.Visible = false  
+                            esp.Box.Visible = false  
+                        end  
+                    else  
+                        if esp then  
+                            esp.Text.Visible = false  
+                            esp.Box.Visible = false  
+                        end  
+                    end  
+                else  
+                    if esp then  
+                        esp.Text.Visible = false  
+                        esp.Box.Visible = false  
+                    end  
+                end  
+
+            end  
+        end  
+    end)  
 end)
 
 _G.Z_Tracers_Enabled = false
@@ -859,110 +1157,342 @@ _G.Z_Hitbox_Mode = "Head"
 _G.Z_Team_Check = true
 _G.Z_Force_Reset = false
 
-local s_p = "Si".."ze"
-local h_p = "He".."ad"
-local t_p = "Tor".."so"
-local tr_p = "Trans".."parency"
-local d_p = "Z".."Data".."99"
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
-RunService.Heartbeat:Connect(function()
-    if not _G.Z_Hitbox_Active and not _G.Z_Force_Reset then return end
+    local s_p = "Si".."ze"
+    local h_p = "He".."ad"
+    local t_p = "Tor".."so"
+    local tr_p = "Trans".."parency"
+    local d_p = "Z".."Data".."99"
 
-    local lp = Players.LocalPlayer
-    local val_size = _G.Z_Hitbox_Size or 20
-    local v_size = Vector3.new(val_size, val_size, val_size)
+    local function IsRealPlayer(player)
+        if not player or not player:IsA("Player") or player == LocalPlayer or player.UserId <= 0 then return false end
+        local char = player.Character
+        if not char or not char.Parent then return false end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local head = char:FindFirstChild("Head")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not hum or hum.Health <= 0 or not head or not root then return false end
+        return true
+    end
 
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= lp and p.Character then
-            local char = p.Character
+    RunService.Heartbeat:Connect(function()
+        local isActive = _G.Z_Hitbox_Active
+        local forceReset = _G.Z_Force_Reset
+        local teamCheck = _G.Z_Team_Check
+        local val_size = _G.Z_Hitbox_Size or 20
+        local v_size = Vector3.new(val_size, val_size, val_size)
 
-            local is_team = _G.Z_Team_Check and lp.Team and p.Team == lp.Team
-            if not _G.Z_Hitbox_Active or _G.Z_Force_Reset or is_team then
-                for _, part in pairs(char:GetChildren()) do
-                    local backup = part:FindFirstChild(d_p)
-                    if backup then
-                        part[s_p] = backup.Value
-                        part[tr_p] = 0
-                        part.CanCollide = true
-                    end
-                end
-                if is_team then continue end
-            end
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local char = p.Character
+                if char then
+                    local is_team = teamCheck and p.Team and LocalPlayer.Team and p.Team == LocalPlayer.Team
+                    local isReal = IsRealPlayer(p)
 
-            if not _G.Z_Hitbox_Active then continue end
-
-            local targets = {}
-            if _G.Z_Hitbox_Mode == "Head" then
-                local head = char:FindFirstChild(h_p) or char:FindFirstChild("FakeHead")
-                if head then table.insert(targets, head) end
-            elseif _G.Z_Hitbox_Mode == "Torso" then
-                local torso = char:FindFirstChild(t_p) or char:FindFirstChild("Upper"..t_p) or char:FindFirstChild("Lower"..t_p)
-                if torso then table.insert(targets, torso) end
-            elseif _G.Z_Hitbox_Mode == "Huesos" then
-                local bones = {"Left Arm", "Right Arm", "Left Leg", "Right Leg", "LeftUpperArm", "RightUpperArm", "LeftUpperLeg", "RightUpperLeg"}
-                for _, b in pairs(bones) do 
-                    local bp = char:FindFirstChild(b)
-                    if bp then table.insert(targets, bp) end
-                end
-            end
-
-            for _, obj in pairs(targets) do
-                if obj and obj:IsA("BasePart") then
-                    if obj[s_p] ~= v_size then
-                        if not obj:FindFirstChild(d_p) then
-                            local s = Instance.new("Vector3Value", obj)
-                            s.Name = d_p
-                            s.Value = obj[s_p]
+                    if not isActive or forceReset or is_team or not isReal then
+                        for _, part in pairs(char:GetChildren()) do
+                            if part:IsA("BasePart") then
+                                local backup = part:FindFirstChild(d_p)
+                                if backup then
+                                    part[s_p] = backup.Value
+                                    part[tr_p] = 0
+                                    part.CanCollide = true
+                                    backup:Destroy()
+                                end
+                            end
                         end
+                        if is_team or not isActive or not isReal then continue end
+                    end
 
-                        obj[s_p] = v_size
-                        obj[tr_p] = 0.6
-                        obj.Color = Color3.fromRGB(255, 0, 0)
-                        obj.Material = Enum.Material.Neon
-                        obj.CanCollide = false
-                        obj.Massless = true
+                    if not isActive then continue end
 
-                        local m = obj:FindFirstChildOfClass("SpecialMesh")
-                        if m then m.Scale = Vector3.new(1,1,1) end 
+                    local targets = {}
+                    if _G.Z_Hitbox_Mode == "Head" then
+                        local head = char:FindFirstChild(h_p) or char:FindFirstChild("FakeHead")
+                        if head then table.insert(targets, head) end
+                    elseif _G.Z_Hitbox_Mode == "Torso" then
+                        local torso = char:FindFirstChild(t_p) or char:FindFirstChild("Upper"..t_p) or char:FindFirstChild("Lower"..t_p)
+                        if torso then table.insert(targets, torso) end
+                    elseif _G.Z_Hitbox_Mode == "Huesos" then
+                        local bones = {"Left Arm", "Right Arm", "Left Leg", "Right Leg", "LeftUpperArm", "RightUpperArm", "LeftUpperLeg", "RightUpperLeg"}
+                        for _, b in pairs(bones) do 
+                            local bp = char:FindFirstChild(b)
+                            if bp then table.insert(targets, bp) end
+                        end
+                    end
+
+                    for _, obj in pairs(targets) do
+                        if obj and obj:IsA("BasePart") then
+                            -- Guardar respaldo si no existe
+                            if not obj:FindFirstChild(d_p) then
+                                local s = Instance.new("Vector3Value", obj)
+                                s.Name = d_p
+                                s.Value = obj[s_p]
+                                s.Archivable = false
+                            end
+
+                            -- Aplicar tamaño actual al instante para que responda al slider sin congelarse
+                            obj[s_p] = v_size
+                            obj[tr_p] = 0.6
+                            obj.Color = Color3.fromRGB(255, 0, 0)
+                            obj.Material = Enum.Material.Neon
+                            obj.CanCollide = false
+                            obj.Massless = true
+
+                            local m = obj:FindFirstChildOfClass("SpecialMesh")
+                            if m then m.Scale = Vector3.new(1, 1, 1) end 
+                        end
                     end
                 end
             end
         end
-    end
-    _G.Z_Force_Reset = false 
+        
+        if _G.Z_Force_Reset then
+            _G.Z_Force_Reset = false
+        end
+    end)
 end)
 
-InfoTab:Section({ Title = "Estado & Actualizaciones" })
-InfoTab:Paragraph({
-    Title = "Información del Hub",
-    Desc = "📌 Versión: v1.0 Bssic\n🟢 Estado: Online\n👤 Creador: @ZNORESTE\n\n¡Gracias por usar Z Nexus!"
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+local UserSettings = UserSettings()
+local GameSettings = UserSettings:GetService("UserGameSettings")
+
+_G.Z_FpsNz_Active = false
+
+local function ApplyFpsNz(state)
+    _G.Z_FpsNz_Active = state
+    if not _G.Z_FpsNz_Active then return end
+
+    pcall(function()
+        GameSettings.SavedQualityLevel = Enum.SavedQualityLevel.Level01
+        
+        Lighting.GlobalShadows = false
+        Lighting.Brightness = 0
+        Lighting.FogEnd = 200
+        Lighting.ClockTime = 14
+
+        for _, v in pairs(Lighting:GetChildren()) do
+            if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Clouds") or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") then
+                v:Destroy()
+            end
+        end
+
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterTransparency = 1
+            pcall(function()
+                Terrain.Decoration = false
+            end)
+        end
+
+        for _, v in pairs(Workspace:GetDescendants()) do
+            pcall(function()
+                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("Beam") then
+                    v:Destroy()
+                elseif v:IsA("Light") then
+                    v.Enabled = false
+                elseif v:IsA("BasePart") then
+                    v.CastShadow = false
+                end
+            end)
+        end
+    end)
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+_G.Z_InstantMove_Active = false
+local moveConnection = nil
+
+local function ApplyInstantMovement(state)
+    _G.Z_InstantMove_Active = state
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local animateScript = char:FindFirstChild("Animate")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local root = char:FindFirstChild("HumanoidRootPart")
+
+        if _G.Z_InstantMove_Active then
+            if animateScript then
+                animateScript.Disabled = true
+            end
+            
+            if hum then
+                hum.AutoRotate = false
+                local animator = hum:FindFirstChildOfClass("Animator")
+                if animator then
+                    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                        track:Stop(0)
+                    end
+                end
+            end
+
+            if not moveConnection then
+                moveConnection = RunService.Heartbeat:Connect(function()
+                    if not _G.Z_InstantMove_Active then return end
+                    pcall(function()
+                        local currChar = LocalPlayer.Character
+                        if not currChar then return end
+                        local currRoot = currChar:FindFirstChild("HumanoidRootPart")
+                        local currHum = currChar:FindFirstChildOfClass("Humanoid")
+                        
+                        if currRoot and currHum then
+                            if currHum.SeatPart then 
+                                return 
+                            end
+
+                            local animator = currHum:FindFirstChildOfClass("Animator")
+                            if animator then
+                                for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                                    track:Stop(0)
+                                end
+                            end
+
+                            if currHum.MoveDirection.Magnitude > 0 then
+                                local moveDir = currHum.MoveDirection
+                                local targetPos = currRoot.Position + Vector3.new(moveDir.X, 0, moveDir.Z)
+                                currRoot.CFrame = CFrame.new(currRoot.Position, targetPos)
+                            end
+                        end
+                    end)
+                end)
+            end
+        else
+            if animateScript then
+                animateScript.Disabled = false
+            end
+            if hum then
+                hum.AutoRotate = true
+            end
+            if moveConnection then
+                moveConnection:Disconnect()
+                moveConnection = nil
+            end
+        end
+    end)
+end
+
+HomeTab:Section({ Title = "  Bienvenido/a", Icon = "earth-lock" })
+
+HomeTab:Paragraph({
+    Title     = "Script Para Cualquier Juego de !!Topones!!",
+    Desc      = "Dato.. En algunos no pueden llegar a jalar ciertas Opciones!! ",
+    Image     = "https://cdn.discordapp.com/embed/avatars/1.png",
+    Thumbnail = "https://raw.githubusercontent.com/zsoyyo73-dotcom/zx/heads/main/Black%20and%20White%20PC%20Wallpaper%204K.jpg",
+    ImageSize = 48,
 })
 
-InfoTab:Section({ Title = "Comunidad & Redes" })
+HomeTab:Space()
+HomeTab:Section({ Title = "  Estado del Motor", Icon = "activity" })
+HomeTab:Paragraph({
+    Title = "Sistema Listo",
+    Desc  = "Script Listo!! para partir madres",
+    ImageSize = 0,
+})
 
-InfoTab:Button({
-    Title = "Tik tok",
-    Desc = "Haz clic para copiar el enlace",
+HomeTab:Section({
+    Title = " Z NEXUS+ COMMUNITY",
+    Icon = "message-circle-more",
+})
+
+HomeTab:Paragraph({
+    Title     = "Únete al Discord",
+    Desc      = "El mejor script de Server Hop, para Steal An Egg. Soporte y actualizaciones.",
+    ImageSize = 48,
+    Buttons   = {
+        {
+            Title    = " Copiar enlace",
+            Icon     = "clipboard-copy",
+            Callback = function()
+                setclipboard("https://discord.gg/jHShnpdKCC")
+                WindUI:Notify({ Title = "Enlace copiado", Content = "Copiado al portapapeles", Duration = 2 })
+            end,
+        },
+    },
+})
+
+HomeTab:Space()
+HomeTab:Section({ Title = "  Síguenos en TikTok", Icon = "user-round" })
+
+HomeTab:Button({
+    Title    = "@nexus1_h",
+    Icon = "user",
     Callback = function()
-        if setclipboard then
-            setclipboard("https://www.tiktok.com/@znoreste")
-            WindUI:Notify({ Title = "Copiado", Content = "Enlace de TikTok copiado!", Icon = "check", Duration = 1 })
+        setclipboard("https://www.tiktok.com/@nexus1_h")
+        WindUI:Notify({ Title = "Copiado", Content = "Perfil copiado", Duration = 2 })
+    end,
+})
+
+HomeTab:Space()
+
+HomeTab:Button({
+    Title    = "@znoreste",
+    Icon = "user",
+    Callback = function()
+        setclipboard("https://www.tiktok.com/@znoreste")
+        WindUI:Notify({ Title = "✅ Copiado", Content = "Perfil copiado", Duration = 2 })
+    end,
+})
+
+FpsTab:Section({ Title = "  Fps / Optimizer", Icon = "users-round" })
+
+local FpsNz_State = false
+FpsTab:Button({
+    Title = "Fps Nz",
+    Desc = "version v1 Beta.",
+    Callback = function()
+        FpsNz_State = not FpsNz_State
+        ApplyFpsNz(FpsNz_State)
+        
+        if FpsNz_State then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+            if _G.UpdateArrayList then
+                _G.UpdateArrayList("Fps Nz", true, "[EXTREMO]")
+            end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+            if _G.UpdateArrayList then
+                _G.UpdateArrayList("Fps Nz", false, "")
+            end
         end
     end
 })
 
-InfoTab:Button({
-    Title = "Discord",
-    Desc = "Haz clic para copiar el enlace",
+FpsTab:Section({ Title = "  Movimiento Tela / Instantáneo", Icon = "settings" })
+
+local InstantMove_State = false
+FpsTab:Button({
+    Title = "Movimiento Sin Animación",
+    Desc = "Elimina animaciones de WASD para giros y movimientos secos instantáneos.",
     Callback = function()
-        if setclipboard then
-            setclipboard("https://discord.gg/6yw4xFPE6")
-            WindUI:Notify({ Title = "Copiado", Content = "Enlace de Discord copiado!", Icon = "check", Duration = 1 })
+        InstantMove_State = not InstantMove_State
+        ApplyInstantMovement(InstantMove_State)
+        
+        if InstantMove_State then
+            if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+            if _G.UpdateArrayList then
+                _G.UpdateArrayList("Instant Move", true, "V1")
+            end
+        else
+            if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end
+            if _G.UpdateArrayList then
+                _G.UpdateArrayList("Instant Move", false, "")
+            end
         end
     end
 })
 
-CombatTab:Section({ Title = "Options Nexus" })
+
+CombatTab:Section({ Title = "  Options Nexus", Icon = "usb" })
 
 CombatTab:Toggle({
     Title = "Execute Kill Auto",
@@ -1043,7 +1573,7 @@ CombatTab:Button({
 
 CombatTab:Space()
 
-VisualsTab:Section({ Title = "ESP 2X" })
+VisualsTab:Section({ Title = "  ESP 2X",Icon = "user-round" })
 
 VisualsTab:Toggle({
     Title = "Esp 2X",
@@ -1111,7 +1641,7 @@ VisualsTab:Colorpicker({
     end
 })
 
-VisualsTab:Section({ Title = "Esp Tracers" })
+VisualsTab:Section({ Title = "  Esp Tracers", Icon = "rocket" })
 
 VisualsTab:Toggle({
     Title = "Esp Tracers",
@@ -1186,7 +1716,82 @@ VisualsTab:Colorpicker({
     Callback = function(color) _G.Z_Tracer_Color = color end
 })
 
-VisualsTab:Section({ Title = "ArrayList HUD" })
+VisualsTab:Section({ Title = "  ESP Extras (Chams & Tags)", Icon = "zap" })
+
+VisualsTab:Toggle({
+    Title = "Esp Chams (Highlight)",
+    Desc = "Ilumina a los enemigos a través de las paredes.",
+    Flag = "EspChamsToggle",
+    Value = _G.Z_ESP_Chams,
+    Callback = function(state)
+        if state then if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end end
+        
+        _G.Z_ESP_Chams = state 
+        if _G.UpdateArrayList then _G.UpdateArrayList("Esp Chams", state, "") end
+    end
+})
+
+VisualsTab:Colorpicker({
+    Title = "Color Chams",
+    Flag = "EspChamsColor",
+    Default = _G.Z_ESP_Chams_Color,
+    Callback = function(color) 
+        _G.Z_ESP_Chams_Color = color
+    end
+})
+
+VisualsTab:Section({ Title = "  Esp Info", Icon = "shield-ellipsis" })
+
+VisualsTab:Toggle({
+    Title = "Esp Info (Tags)",
+    Desc = "Muestra Nombre | Distancia | Vida en números.",
+    Flag = "EspTagsToggle",
+    Value = _G.Z_ESP_Tags,
+    Callback = function(state)
+        if state then if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end end
+        
+        _G.Z_ESP_Tags = state 
+        if _G.UpdateArrayList then _G.UpdateArrayList("Esp Info", state, "") end
+    end
+})
+
+VisualsTab:Colorpicker({
+    Title = "Color Info (Tags)",
+    Flag = "EspTagsColor",
+    Default = _G.Z_ESP_Tags_Color,
+    Callback = function(color) 
+        _G.Z_ESP_Tags_Color = color
+    end
+})
+
+VisualsTab:Slider({
+    Title = "Transparencia (Tags)",
+    Desc = "1: Sólido | 100: Invisible.",
+    Flag = "EspTagsTransparency",
+    Step = 1,
+    Value = { Min = 1, Max = 100, Default = 1 },
+    Callback = function(val)
+        _G.Z_ESP_Tags_Transparency = (101 - val) / 100
+    end
+})
+
+VisualsTab:Toggle({
+    Title = "Team Check",
+    Desc = "Oculta Chams y Tags de tus aliados..",
+    Flag = "EspExtrasTeamCheck",
+    Value = _G.Z_ESP_Chams_TeamCheck,
+    Callback = function(state) 
+        if state then if _G.PlayOptionActivated then _G.PlayOptionActivated() end
+        else if _G.PlayOptionDeactivated then _G.PlayOptionDeactivated() end end
+        
+        _G.Z_ESP_Chams_TeamCheck = state
+        _G.Z_ESP_Tags_TeamCheck = state
+    end
+})
+
+VisualsTab:Section({ Title = "  ArrayList HUD", Icon = "handshake" })
 
 VisualsTab:Toggle({
     Title = "Mostrar ArrayList",
@@ -1281,7 +1886,7 @@ _G.Zinvis = _G.Zinvis or false
 _G.DesyncEnabled = _G.DesyncEnabled or false
 _G.DesyncPower = _G.DesyncPower or 50
 
-OtherTab:Section({ Title = "Movement & Fall Damage" })
+OtherTab:Section({ Title = "  Movement & Fall Damage", Icon = "brain" })
 
 OtherTab:Toggle({
     Title = "No Fall",
@@ -1334,7 +1939,7 @@ OtherTab:Toggle({
     end,
 })
 
-OtherTab:Section({ Title = "Hitbox & Desync" })
+OtherTab:Section({ Title = "  Hitbox & Desync", Icon = "users-round" })
 
 OtherTab:Toggle({
     Title = "ExuVisibilyti",
@@ -1410,7 +2015,7 @@ _G.FOVConnection = RunService.RenderStepped:Connect(function()
     end
 end)
 
-UniversalTab:Section({ Title = "Visuales & Iluminación" })
+UniversalTab:Section({ Title = "  Visuales & Iluminación", Icon = "loader" })
 
 UniversalTab:Slider({
     Title = "Campo de Visión (FOV)",
@@ -1459,7 +2064,7 @@ UniversalTab:Toggle({
     end
 })
 
-UniversalTab:Section({ Title = "Hitbox UNIVERSAL" })
+UniversalTab:Section({ Title = "  Hitbox v1", Icon = "triangle-alert" })
 
 UniversalTab:Toggle({
     Title = "Hitbox Expander",
@@ -1477,7 +2082,7 @@ UniversalTab:Toggle({
             _G.Z_Force_Reset = true
         end
         if _G.UpdateArrayList then
-            _G.UpdateArrayList("Hitbox", state, "[" .. tostring(_G.Z_Hitbox_Size) .. "]")
+            _G.UpdateArrayList("Hitbox Expander", state, "[" .. tostring(_G.Z_Hitbox_Size) .. "]")
         end
     end
 })
@@ -1656,7 +2261,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-CombatTab:Section({ Title = "Aimbot & Asistencia" })
+CombatTab:Section({ Title = "  Aimbot & Asistencia", Icon = "ship-wheel" })
 
 CombatTab:Toggle({
     Title = "Aimbot CamLock",
@@ -1938,7 +2543,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-SilentTab:Section({ Title = "Silent Aim Config" })
+SilentTab:Section({ Title = "  Silent Aim", Icon = "pickaxe" })
 
 SilentTab:Toggle({
     Title = "Silent Aim",
@@ -2032,7 +2637,7 @@ SilentTab:Slider({
     end
 })
 
-ConfigTab:Section({ Title = "Gestor de Configuraciones (Max. 5)" })
+ConfigTab:Section({ Title = "  Gestor de Configuraciones Max.", Icon = "settings" })
 
 local ConfigLimit = 5
 local SaveConfigName = ""
