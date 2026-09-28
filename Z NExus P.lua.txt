@@ -1235,7 +1235,6 @@ task.spawn(function()
                                 s.Archivable = false
                             end
 
-                            -- Aplicar tamaño actual al instante para que responda al slider sin congelarse
                             obj[s_p] = v_size
                             obj[tr_p] = 0.6
                             obj.Color = Color3.fromRGB(255, 0, 0)
