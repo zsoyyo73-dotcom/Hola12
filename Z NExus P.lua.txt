@@ -1380,6 +1380,136 @@ local function ApplyInstantMovement(state)
     end)
 end
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+_G.Hitbox_Enabled = false
+_G.Hitbox_Size = 10
+_G.Hitbox_TeamCheck = true
+_G.Hitbox_Show = false
+_G.Hitbox_Transparency = 0.7
+
+local hitboxParts = {}
+local heartbeatConnection = nil
+
+local function IsValidTarget(player)
+    if not player or player == LocalPlayer or not player.Character then
+        return false
+    end
+
+    local char = player.Character
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+
+    if not hum or hum.Health <= 0 or not hrp then
+        return false
+    end
+
+    -- Team Check
+    if _G.Hitbox_TeamCheck and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+        return false
+    end
+
+    if _G.IsRealPlayer and not _G.IsRealPlayer(player) then
+        return false
+    end
+
+    return true
+end
+
+local function RemoveHitboxPart(player)
+    if hitboxParts[player] then
+        pcall(function()
+            if hitboxParts[player].part then
+                hitboxParts[player].part:Destroy()
+            end
+        end)
+        hitboxParts[player] = nil
+    end
+end
+
+local function ClearAllHitboxes()
+    for player, data in pairs(hitboxParts) do
+        if data and data.part then
+            pcall(function()
+                data.part:Destroy()
+            end)
+        end
+    end
+    table.clear(hitboxParts)
+end
+
+local function ProcessPlayerHitbox(player)
+    if not _G.Hitbox_Enabled or not IsValidTarget(player) then
+        RemoveHitboxPart(player)
+        return
+    end
+
+    local char = player.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local existingData = hitboxParts[player]
+    local part = existingData and existingData.part
+
+    if not part or not part.Parent or part.Parent ~= char then
+        RemoveHitboxPart(player)
+
+        part = Instance.new("Part")
+        part.Name = "Nexus1_Hitbox"
+        part.Shape = Enum.PartType.Block
+        part.CFrame = hrp.CFrame
+        part.Anchored = false
+        part.CanCollide = false
+        part.CanQuery = true
+        part.CanTouch = true
+        part.Massless = true
+        part.Material = Enum.Material.SmoothPlastic
+        part.Color = Color3.fromRGB(255, 0, 0)
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = part
+        weld.Part1 = hrp
+        weld.Parent = part
+
+        part.Parent = char
+        hitboxParts[player] = { part = part, hrp = hrp }
+    end
+
+    local sizeVal = tonumber(_G.Hitbox_Size) or 10
+    part.Size = Vector3.new(sizeVal, sizeVal, sizeVal)
+    part.Transparency = _G.Hitbox_Show and _G.Hitbox_Transparency or 1
+end
+
+local function ToggleHitboxSystem(state)
+    _G.Hitbox_Enabled = state
+
+    if state then
+        if not heartbeatConnection then
+            heartbeatConnection = RunService.Heartbeat:Connect(function()
+                if not _G.Hitbox_Enabled then return end
+
+                for player, _ in pairs(hitboxParts) do
+                    if not player or not player.Parent then
+                        RemoveHitboxPart(player)
+                    end
+                end
+
+                for _, player in ipairs(Players:GetPlayers()) do
+                    ProcessPlayerHitbox(player)
+                end
+            end)
+        end
+    else
+        if heartbeatConnection then
+            heartbeatConnection:Disconnect()
+            heartbeatConnection = nil
+        end
+        ClearAllHitboxes()
+    end
+end
+
 HomeTab:Section({ Title = "  Bienvenido/a", Icon = "earth-lock" })
 
 HomeTab:Paragraph({
@@ -2382,6 +2512,69 @@ CombatTab:Toggle({
         end
         _G.Aimbot_WallCheck = state
         currentTarget = nil
+    end
+})
+
+CombatTab:Section({ Title = "  Hitbox Expander", Icon = "box" })
+
+CombatTab:Toggle({
+    Title = "Activar Hitbox Expander",
+    Desc = "Aumenta el área de impacto en los enemigos mediante WeldConstraint.",
+    Flag = "Combat_Hitbox",
+    Value = false,
+    Callback = function(state)
+        ToggleHitboxSystem(state)
+        if _G.UpdateArrayList then
+            _G.UpdateArrayList("Hitbox", state, "[" .. tostring(_G.Hitbox_Size) .. "]")
+        end
+    end
+})
+
+CombatTab:Slider({
+    Title = "Tamaño de Hitbox",
+    Desc = "Ajusta la dimensión del bloque de impacto (Studs).",
+    Flag = "Combat_HitboxSize",
+    Step = 1,
+    Value = { Min = 2, Max = 30, Default = 10 },
+    Callback = function(v)
+        _G.Hitbox_Size = v
+        if _G.Hitbox_Enabled and _G.UpdateArrayList then
+            _G.UpdateArrayList("Hitbox", true, "[" .. tostring(v) .. "]")
+        end
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Mostrar Hitboxes",
+    Desc = "Hace visible el bloque transparente de impacto.",
+    Flag = "Combat_HitboxShow",
+    Value = false,
+    Callback = function(state)
+        _G.Hitbox_Show = state
+    end
+})
+
+CombatTab:Slider({
+    Title = "Transparencia de Hitbox",
+    Desc = "Ajusta la visibilidad del bloque (0 = Sólido, 1 = Invisible).",
+    Flag = "Combat_HitboxTransparency",
+    Step = 0.05,
+    Value = { Min = 0, Max = 0.95, Default = 0.7 },
+    Callback = function(v)
+        _G.Hitbox_Transparency = v
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Team Check",
+    Desc = "No expande las hitboxes de compañeros de equipo.",
+    Flag = "Combat_HitboxTeamCheck",
+    Value = true,
+    Callback = function(state)
+        _G.Hitbox_TeamCheck = state
+        if not state then
+            ClearAllHitboxes()
+        end
     end
 })
 
